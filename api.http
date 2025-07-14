@@ -1,0 +1,140 @@
+@baseUrl = http://localhost:3333
+@organizationSlug = escritorio
+@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYTRkMDYzOS0xYzM4LTRkNjYtYTVmNi1mMWRiNGY0ODE1ZjQiLCJpYXQiOjE3NTIzMzU2MjIsImV4cCI6MTc1Mjk0MDQyMn0._Y1d_gwC-nI6sJqpdFUjXzVIGH9aH3jdhHmeAS9SsY0
+
+
+###
+
+# @name cria_novo_usuário
+POST {{baseUrl}}/users
+Content-Type: application/json
+{
+  "name": "Teste",
+  "email": "hugo2@gmail.com",
+  "password": "romerito"
+}
+
+###
+
+# @name retorna_todos_usuários
+GET {{baseUrl}}/users
+
+###
+
+# @name autenticação_com_email_e_senha
+POST {{baseUrl}}/sessions/password
+Content-Type: application/json
+{
+  "email": "hugo1@gmail.com",
+  "password": "romerito"
+}
+
+###
+
+# @name cria_token_para_alterar_senha
+POST {{baseUrl}}/password/recover
+Content-Type: application/json
+{
+  "email": "hugo2@gmail.com"
+}
+
+###
+
+# @name altera_senha
+POST {{baseUrl}}/password/reset
+Content-Type: application/json
+ 
+{
+  "code": "f890da11-565e-4f42-86b2-4dd51fcc17bf",
+  "password": "romerito"
+}
+
+
+###
+
+# @name retorna_informações_do_usuário_logado
+GET {{baseUrl}}/profile
+Authorization: {{tokenAuth}}
+
+
+###
+
+# @name cria_organização
+POST {{baseUrl}}/organizations
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+ 
+{
+  "name": "Escritório"
+}
+
+
+###
+
+# @name cria_unidade_em_uma_organização
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+ 
+{
+  "name": "Policlínica Santa_Maria",
+  "description": "Atendimento clinico",
+  "location": "Santa Maria"
+}
+
+
+###
+
+# @name atualiza_organização
+PUT  {{baseUrl}}/organizations/{{organizationSlug}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+ 
+{
+  "name": "usbsjs",
+  "domain": "asafsad"
+}
+
+
+
+###
+
+# @name retorna_unidades_de_uma_organização
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units
+Authorization: {{tokenAuth}}
+
+###
+
+# @name retorna_informações_da_organização
+GET {{baseUrl}}/organizations/{{organizationSlug}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name retorna_organizações_do_usuário
+GET {{baseUrl}}/organizations
+Authorization: {{tokenAuth}}
+
+###
+
+# @name retorna_informações_de_membro_do_usuário
+GET {{baseUrl}}/organizations/{{organizationSlug}}/membership
+Authorization: {{tokenAuth}}
+
+###
+
+# @name retorna_informações_de_membro_do_usuário
+GET {{baseUrl}}/organizations/{{organizationSlug}}/members
+Authorization: {{tokenAuth}}
+
+###
+
+# @name retorna_informações_de_membro_do_usuário
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/policlinica-santamaria/members
+Authorization: {{tokenAuth}}
+
+###
+
+# @name deleta_organização
+DELETE  {{baseUrl}}/organizations/{{organizationSlug}}
+Authorization: {{tokenAuth}}
