@@ -1,0 +1,272 @@
+import { and, eq } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
+import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
+import { z } from 'zod/v4'
+import { db } from '../../../db/connection.ts'
+import {
+  demandCategoryZodEnum,
+  demandPriorityZodEnum,
+  demandStatusZodEnum,
+} from '../../../db/schema/enums.ts'
+import {
+  applicants,
+  demands,
+  members,
+  organizations,
+  units,
+  users,
+} from '../../../db/schema/index.ts'
+import { auth } from '../../middlewares/auth.ts'
+import { getUserPermissions } from '../../utils/get-user-permissions.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+
+export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
+  app.register(auth).get(
+    '/organizations/:organizationSlug/units/:unitSlug/demands/:demandSlug',
+    {
+      schema: {
+        tags: ['demands'],
+        summary: 'Get demand on unit',
+        security: [{ bearerAuth: [] }],
+        params: z.object({
+          organizationSlug: z.string(),
+          unitSlug: z.string(),
+          demandSlug: z.string(),
+        }),
+        response: {
+          200: z.object({
+            demand: z.object({
+              id: z.uuid(),
+              title: z.string(),
+              description: z.string(),
+              status: demandStatusZodEnum,
+              priority: demandPriorityZodEnum,
+              category: demandCategoryZodEnum,
+              cep: z.string().nullable(),
+              state: z.string().nullable(),
+              city: z.string().nullable(),
+              street: z.string().nullable(),
+              neighborhood: z.string().nullable(),
+              complement: z.string().nullable(),
+              number: z.string().nullable(),
+              createdAt: z.date(),
+              updatedAt: z.date().nullable(),
+
+              owner: z
+                .object({
+                  id: z.uuid(),
+                  name: z.string().nullable(),
+                  email: z.email(),
+                  avatarUrl: z.url().nullable(),
+                })
+                .nullable(),
+
+              unit: z.object({
+                id: z.uuid(),
+                name: z.string(),
+                slug: z.string(),
+                organization: z.object({
+                  id: z.uuid(),
+                  name: z.string(),
+                  slug: z.string(),
+                  avatarUrl: z.url().nullable(),
+                }),
+              }),
+
+              applicant: z.object({
+                id: z.uuid(),
+                name: z.string(),
+                birthdate: z.date(),
+                avatarUrl: z.url().nullable(),
+                phone: z.string(),
+              }),
+
+              member: z
+                .object({
+                  user: z.object({
+                    id: z.uuid(),
+                    name: z.string().nullable(),
+                    email: z.email(),
+                    avatarUrl: z.url().nullable(),
+                  }),
+                })
+                .nullable(),
+            }),
+          }),
+        },
+      },
+    },
+    async (request, _reply) => {
+      const { organizationSlug, unitSlug, demandSlug } = request.params
+      const userId = await request.getCurrentUserId()
+
+      const { membership } = await request.getUserMembership(organizationSlug)
+
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.unit_role || membership.organization_role
+      )
+
+      if (cannot('get', 'Demand')) {
+        throw new UnauthorizedError(
+          'Você não possui permissão para visualizar as demandas.'
+        )
+      }
+
+      // Verificar se a unidade existe na organização
+      const unit = await db
+        .select()
+        .from(units)
+        .innerJoin(organizations, eq(units.organization_id, organizations.id))
+        .where(
+          and(
+            eq(units.slug, unitSlug),
+            eq(organizations.slug, organizationSlug)
+          )
+        )
+        .limit(1)
+
+      if (unit.length === 0) {
+        throw new BadRequestError('Unidade não encontrada na organização.')
+      }
+
+      // Buscar a demanda com todos os relacionamentos
+      const ownerUsers = alias(users, 'owner_users')
+      const memberUsers = alias(users, 'member_users')
+
+      // Buscar a demanda com todos os relacionamentos
+      const demandResult = await db
+        .select({
+          // Campos da demanda
+          id: demands.id,
+          title: demands.title,
+          description: demands.description,
+          status: demands.status,
+          priority: demands.priority,
+          category: demands.category,
+          cep: demands.zip_code,
+          state: demands.state,
+          city: demands.city,
+          street: demands.street,
+          neighborhood: demands.neighborhood,
+          complement: demands.complement,
+          number: demands.number,
+          createdAt: demands.created_at,
+          updatedAt: demands.updated_at,
+
+          // Owner (pode ser null)
+          ownerId: ownerUsers.id,
+          ownerName: ownerUsers.name,
+          ownerEmail: ownerUsers.email,
+          ownerAvatarUrl: ownerUsers.avatar_url,
+
+          // Unit
+          unitId: units.id,
+          unitName: units.name,
+          unitSlug: units.slug,
+
+          // Organization
+          organizationId: organizations.id,
+          organizationName: organizations.name,
+          organizationSlug: organizations.slug,
+          organizationAvatarUrl: organizations.avatar_url,
+
+          // Applicant
+          applicantId: applicants.id,
+          applicantName: applicants.name,
+          applicantBirthdate: applicants.birthdate,
+          applicantAvatarUrl: applicants.avatar_url,
+          applicantPhone: applicants.phone,
+
+          // Member user (pode ser null)
+          memberUserId: memberUsers.id,
+          memberUserName: memberUsers.name,
+          memberUserEmail: memberUsers.email,
+          memberUserAvatarUrl: memberUsers.avatar_url,
+        })
+        .from(demands)
+        .innerJoin(units, eq(demands.unit_id, units.id))
+        .innerJoin(organizations, eq(units.organization_id, organizations.id))
+        .innerJoin(applicants, eq(demands.applicant_id, applicants.id))
+        .leftJoin(ownerUsers, eq(demands.owner_id, ownerUsers.id))
+        .leftJoin(members, eq(demands.member_id, members.id))
+        .leftJoin(memberUsers, eq(members.user_id, memberUsers.id))
+        .where(
+          and(
+            eq(demands.id, demandSlug),
+            eq(units.slug, unitSlug),
+            eq(organizations.slug, organizationSlug)
+          )
+        )
+        .limit(1)
+
+      if (demandResult.length === 0) {
+        throw new BadRequestError('Demanda não encontrada.')
+      }
+
+      const demandData = demandResult[0]
+
+      // Estruturar a resposta conforme o schema
+      const demand = {
+        id: demandData.id,
+        title: demandData.title,
+        description: demandData.description,
+        status: demandData.status,
+        priority: demandData.priority,
+        category: demandData.category,
+        cep: demandData.cep,
+        state: demandData.state,
+        city: demandData.city,
+        street: demandData.street,
+        neighborhood: demandData.neighborhood,
+        complement: demandData.complement,
+        number: demandData.number,
+        createdAt: new Date(demandData.createdAt),
+        updatedAt: demandData.updatedAt ? new Date(demandData.updatedAt) : null,
+
+        owner: demandData.ownerId
+          ? {
+              id: demandData.ownerId,
+              name: demandData.ownerName,
+              email: demandData.ownerEmail as string,
+              avatarUrl: demandData.ownerAvatarUrl,
+            }
+          : null,
+
+        unit: {
+          id: demandData.unitId,
+          name: demandData.unitName,
+          slug: demandData.unitSlug,
+          organization: {
+            id: demandData.organizationId,
+            name: demandData.organizationName,
+            slug: demandData.organizationSlug,
+            avatarUrl: demandData.organizationAvatarUrl,
+          },
+        },
+
+        applicant: {
+          id: demandData.applicantId,
+          name: demandData.applicantName,
+          birthdate: new Date(demandData.applicantBirthdate),
+          avatarUrl: demandData.applicantAvatarUrl,
+          phone: demandData.applicantPhone,
+        },
+
+        member: demandData.memberUserId
+          ? {
+              user: {
+                id: demandData.memberUserId,
+                name: demandData.memberUserName,
+                email: demandData.memberUserEmail as string,
+                avatarUrl: demandData.memberUserAvatarUrl,
+              },
+            }
+          : null,
+      }
+
+      return { demand }
+    }
+  )
+}

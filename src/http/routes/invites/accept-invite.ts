@@ -1,75 +1,68 @@
-import { auth } from '@/http/middlewares/auth'
-import { prisma } from '@/lib/prisma'
-import type { FastifyInstance } from 'fastify'
-import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-import z from 'zod'
-import { BadRequestError } from '../_errors/bad-request-error'
+import { eq } from 'drizzle-orm'
+import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
+import { z } from 'zod/v4'
+import { db } from '../../../db/connection.ts'
+import { invites, members, users } from '../../../db/schema/index.ts'
+import { auth } from '../../middlewares/auth.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
 
-export async function acceptInvite(app: FastifyInstance) {
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .register(auth)
-    .post(
-      '/invites/:inviteId/accept',
-      {
-        schema: {
-          tags: ['invites'],
-          summary: 'Accept an invite',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            inviteId: z.string().uuid(),
-          }),
-          response: {
-            204: z.null(),
-          },
+export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
+  app.register(auth).post(
+    '/invites/:inviteId/accept',
+    {
+      schema: {
+        tags: ['invites'],
+        summary: 'Accept an invite',
+        security: [{ bearerAuth: [] }],
+        params: z.object({
+          inviteId: z.uuid(),
+        }),
+        response: {
+          204: z.null(),
         },
       },
-      async (request, reply) => {
-        const userId = await request.getCurrentUserId()
-        const { inviteId } = request.params
+    },
+    async (request, reply) => {
+      const userId = await request.getCurrentUserId()
+      const { inviteId } = request.params
 
-        const invite = await prisma.invite.findUnique({
-          where: {
-            id: inviteId,
-          },
+      const invite = await db
+        .select()
+        .from(invites)
+        .where(eq(invites.id, inviteId))
+        .limit(1)
+
+      if (!invite[0]) {
+        throw new BadRequestError('Convite não encontrado ou expirado.')
+      }
+
+      const user = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+
+      if (!user[0]) {
+        throw new BadRequestError('Usuário não encontrado.')
+      }
+
+      if (invite[0].email !== user[0].email) {
+        throw new BadRequestError('Este convite pertence a outro usuário.')
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.insert(members).values({
+          user_id: userId,
+          organization_id: invite[0].organization_id,
+          unit_id: invite[0].unit_id,
+          organization_role: invite[0].role,
+          unit_role: invite[0].role,
         })
 
-        if (!invite) {
-          throw new BadRequestError('Invite not found or expired.')
-        }
+        await tx.delete(invites).where(eq(invites.id, inviteId))
+      })
 
-        const user = await prisma.user.findUnique({
-          where: {
-            id: userId,
-          },
-        })
-
-        if (!user) {
-          throw new BadRequestError('User not found.')
-        }
-
-        if (invite.email !== user.email) {
-          throw new BadRequestError('This invite belongs to another user.')
-        }
-
-        await prisma.$transaction([
-          prisma.member.create({
-            data: {
-              userId,
-              organizationId: invite.organizationId,
-              unitId: invite.unitId,
-              role: invite.role,
-            },
-          }),
-
-          prisma.invite.delete({
-            where: {
-              id: inviteId,
-            },
-          }),
-        ])
-
-        return reply.status(204).send()
-      },
-    )
+      return reply.status(204).send()
+    }
+  )
 }

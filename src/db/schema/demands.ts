@@ -1,37 +1,18 @@
-import { pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { applicants } from './applicants.ts'
-import { members } from './members.ts'
-import { units } from './units.ts'
-import { users } from './users.ts'
-
-// AGUARDANDO - EM ANDAMENTO - RESOLVIDO - REJEITADO
-export const demandStatusEnum = pgEnum('demand_status', [
-  'PENDING',
-  'IN_PROGRESS',
-  'RESOLVED',
-  'REJECTED',
-])
-
-export const demandCategoryEnum = pgEnum('demand_category', [
-  'INFRASTRUCTURE',
-  'HEALTH',
-  'EDUCATION',
-  'SOCIAL_ASSISTANCE',
-  'PUBLICA_SAFETY',
-  'TRANSPORTATION',
-  'EMPLOYMENT',
-  'CULTURE',
-  'ENVIRONMENT',
-  'HUMAN_HIGHTS',
-  'TECHNOLOGY',
-])
-
-export const demandPriorityEnum = pgEnum('demand_priority', [
-  'LOW',
-  'MEDIUM',
-  'HIGH',
-  'URGENT',
-])
+import {
+  date,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
+import { users } from './auth.ts'
+import {
+  demandCategoryEnum,
+  demandPriorityEnum,
+  demandStatusEnum,
+} from './enums.ts'
+import { members, organizations, units } from './organization.ts'
 
 export const demands = pgTable('demands', {
   id: uuid().primaryKey().defaultRandom(),
@@ -61,3 +42,28 @@ export const demands = pgTable('demands', {
   owner_id: uuid().references(() => users.id, { onDelete: 'set null' }),
   member_id: uuid().references(() => members.id, { onDelete: 'set null' }),
 })
+
+export const applicants = pgTable(
+  'applicants',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    phone: text().notNull(),
+    birthdate: date().notNull(),
+    cpf: text().notNull(),
+    ticket: text(),
+    mother: text(),
+    father: text(),
+    attachment: text(),
+    observation: text(),
+    avatar_url: text(),
+    created_at: timestamp().defaultNow().notNull(),
+    updated_at: timestamp(),
+    organization_id: uuid()
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    uniqueIndex('cpf_organization_id').on(table.cpf, table.organization_id),
+  ]
+)

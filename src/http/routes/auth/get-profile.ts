@@ -2,8 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
-import { users } from '../../../db/schema/modules/users.ts'
+import { users } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 
 export const getProfileRoute: FastifyPluginCallbackZod = (app) => {
@@ -32,17 +31,15 @@ export const getProfileRoute: FastifyPluginCallbackZod = (app) => {
     },
     async (request, reply) => {
       const userId = await request.getCurrentUserId()
-      // biome-ignore lint/suspicious/noConsole: teste
-      console.log('[ROTA /profile] userId retornado:')
 
       const user = await db
         .select({
-          id: schema.users.id,
-          name: schema.users.name,
-          email: schema.users.email,
-          avatarUrl: schema.users.avatar_url,
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatarUrl: users.avatar_url,
         })
-        .from(schema.users)
+        .from(users)
         .where(eq(users.id, userId))
         .then((res) => res[0])
 

@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { roleEnum } from '../../schema/enums/role.ts'
+import { roleZodEnum } from '../../schema/enums.ts'
 
 /*
   Roles de sistema de assistencialismo político
@@ -11,7 +11,7 @@ import { roleEnum } from '../../schema/enums/role.ts'
 */
 export const userSchema = z.object({
   id: z.string(),
-  role: roleEnum,
+  role: roleZodEnum,
 })
 
 export type User = z.infer<typeof userSchema>

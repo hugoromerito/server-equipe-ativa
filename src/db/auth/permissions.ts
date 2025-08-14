@@ -1,20 +1,20 @@
 import type { AbilityBuilder } from '@casl/ability'
+import type { RoleType } from '../schema/enums.ts'
 import type { AppAbility } from './index.ts'
 import type { User } from './models/user.ts'
-import type { Role } from './roles.ts'
 
 type PermissionsByRole = (
   user: User,
   builder: AbilityBuilder<AppAbility>
 ) => void
 
-export const permissions: Record<Role, PermissionsByRole> = {
+export const permissions: Record<RoleType, PermissionsByRole> = {
   ADMIN: (user, { can, cannot }) => {
     can('manage', 'all')
     cannot(['transfer_ownership', 'update'], 'Unit')
     can(['transfer_ownership', 'update'], 'Unit', { ownerId: { $eq: user.id } })
     can(['transfer_ownership', 'update'], 'Organization', {
-      ownerId: { $eq: user.id },
+      owner_id: { $eq: user.id },
     })
   },
   MANAGER: (_, { can, cannot }) => {

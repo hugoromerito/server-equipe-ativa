@@ -1,6 +1,6 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
-import { roleEnum } from '../../../db/schema/enums/role.ts'
+import { roleZodEnum } from '../../../db/schema/enums.ts'
 import { auth } from '../../middlewares/auth.ts'
 
 export const getMembershipRoute: FastifyPluginCallbackZod = (app) => {
@@ -19,7 +19,7 @@ export const getMembershipRoute: FastifyPluginCallbackZod = (app) => {
             membership: z.object({
               id: z.uuid(),
               userId: z.uuid(),
-              role: roleEnum,
+              orgRole: roleZodEnum,
               organizationId: z.uuid(),
               // unitId: z.string().uuid().nullable(),
             }),
@@ -34,7 +34,7 @@ export const getMembershipRoute: FastifyPluginCallbackZod = (app) => {
       return {
         membership: {
           id: membership.id,
-          role: roleEnum.parse(membership.role),
+          orgRole: roleZodEnum.parse(membership.organization_role),
           organizationId: membership.organization_id,
           userId: membership.user_id,
           // unitId: membership.unitId,

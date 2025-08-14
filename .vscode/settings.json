@@ -207,7 +207,7 @@
     "zrevrank",
     "zscore"
   ],
-  "workbench.statusBar.visible": false,
+  "workbench.statusBar.visible": true,
   "editor.tokenColorCustomizations": {
     "textMateRules": []
   },

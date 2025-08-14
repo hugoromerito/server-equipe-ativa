@@ -1,12 +1,23 @@
 import { asc, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
-import { roleSchema } from '../../../db/auth/roles.ts'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
+import { members, roleZodEnum, users } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+
+type RoleType = z.infer<typeof roleZodEnum>
+
+// Tipo para o membro com informações do usuário
+interface MemberWithUser {
+  id: string
+  orgRole: RoleType
+  userId: string
+  name: string | null
+  email: string
+  avatarUrl: string | null
+}
 
 export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
@@ -25,7 +36,7 @@ export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
               z.object({
                 id: z.uuid(),
                 userId: z.uuid(),
-                role: roleSchema,
+                orgRole: roleZodEnum,
                 name: z.string().nullable(),
                 email: z.email(),
                 avatarUrl: z.url().nullable(),
@@ -40,7 +51,10 @@ export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       const userId = await request.getCurrentUserId()
       const { organization, membership } = await request.getUserMembership(slug)
 
-      const { cannot } = getUserPermissions(userId, membership.role)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.organization_role
+      )
 
       if (cannot('get', 'User')) {
         throw new UnauthorizedError(
@@ -50,34 +64,55 @@ export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
 
       const membersResult = await db
         .select({
-          id: schema.members.id,
-          role: schema.members.role,
+          id: members.id,
+          orgRole: members.organization_role,
           user: {
-            id: schema.users.id,
-            name: schema.users.name,
-            email: schema.users.email,
-            avatarUrl: schema.users.avatar_url,
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            avatarUrl: users.avatar_url,
           },
         })
-        .from(schema.members)
-        .leftJoin(schema.users, eq(schema.users.id, schema.members.user_id))
-        .where(eq(schema.members.organization_id, organization.id))
-        .orderBy(asc(schema.members.role))
+        .from(members)
+        .leftJoin(users, eq(users.id, members.user_id))
+        .where(eq(members.organization_id, organization.id))
+        .orderBy(asc(members.organization_role))
 
-      const membersWithRoles = membersResult.map(({ user, ...member }) => {
+      // const membersWithRoles = membersResult.map(({ user, ...member }) => {
+      //   if (!user) {
+      //     throw new Error('User not found for member')
+      //   }
+
+      //   return {
+      //     id: member.id,
+      //     orgRole: member.orgRole,
+      //     userId: user.id,
+      //     name: user.name,
+      //     email: user.email,
+      //     avatarUrl: user.avatarUrl,
+      //   }
+      // })
+
+      const uniqueUsers = new Map<string, MemberWithUser>()
+
+      for (const { user, ...member } of membersResult) {
         if (!user) {
-          throw new Error('User not found for member')
+          continue
         }
 
-        return {
-          id: member.id,
-          role: member.role,
-          userId: user.id,
-          name: user.name,
-          email: user.email,
-          avatarUrl: user.avatarUrl,
+        if (!uniqueUsers.has(user.id)) {
+          uniqueUsers.set(user.id, {
+            id: member.id,
+            orgRole: member.orgRole as RoleType,
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+          })
         }
-      })
+      }
+
+      const membersWithRoles = Array.from(uniqueUsers.values())
 
       return reply.send({ members: membersWithRoles })
     }

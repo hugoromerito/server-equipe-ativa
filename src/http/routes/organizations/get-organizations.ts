@@ -2,8 +2,8 @@ import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { roleEnum } from '../../../db/schema/enums/role.ts'
-import { schema } from '../../../db/schema/index.ts'
+import { roleZodEnum } from '../../../db/schema/enums.ts'
+import { members, organizations } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 
 export const getOrganizationsRoute: FastifyPluginCallbackZod = (app) => {
@@ -22,7 +22,7 @@ export const getOrganizationsRoute: FastifyPluginCallbackZod = (app) => {
                 name: z.string(),
                 slug: z.string(),
                 avatarUrl: z.url().nullable(),
-                role: roleEnum,
+                orgRole: roleZodEnum,
               })
             ),
           }),
@@ -33,19 +33,19 @@ export const getOrganizationsRoute: FastifyPluginCallbackZod = (app) => {
       const userId = await request.getCurrentUserId()
 
       const organizationsResult = await db
-        .select({
-          id: schema.organizations.id,
-          name: schema.organizations.name,
-          slug: schema.organizations.slug,
-          avatarUrl: schema.organizations.avatar_url,
-          role: schema.members.role,
+        .selectDistinct({
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+          avatarUrl: organizations.avatar_url,
+          orgRole: members.organization_role,
         })
-        .from(schema.organizations)
+        .from(organizations)
         .innerJoin(
-          schema.members,
+          members,
           and(
-            eq(schema.members.organization_id, schema.organizations.id),
-            eq(schema.members.user_id, userId)
+            eq(members.organization_id, organizations.id),
+            eq(members.user_id, userId)
           )
         )
 
@@ -54,7 +54,7 @@ export const getOrganizationsRoute: FastifyPluginCallbackZod = (app) => {
         name: org.name,
         slug: org.slug,
         avatarUrl: org.avatarUrl,
-        role: org.role,
+        orgRole: org.orgRole,
       }))
 
       return { organizations: organizationsWithUserRole }

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
+import { members, organizations } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 import { createSlug } from '../../utils/create-slug.ts'
 
@@ -36,7 +36,7 @@ export const createOrganizationRoute: FastifyPluginCallbackZod = (app) => {
 
       // Verifica se já existe organização com o mesmo slug
       const existing = await db.query.organizations.findFirst({
-        where: eq(schema.organizations.slug, slug),
+        where: eq(organizations.slug, slug),
       })
 
       if (existing) {
@@ -44,7 +44,7 @@ export const createOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       }
 
       const [newOrganization] = await db
-        .insert(schema.organizations)
+        .insert(organizations)
         .values({
           name,
           slug,
@@ -56,10 +56,10 @@ export const createOrganizationRoute: FastifyPluginCallbackZod = (app) => {
         throw new Error('Erro ao criar organização.')
       }
 
-      await db.insert(schema.members).values({
+      await db.insert(members).values({
         organization_id: newOrganization.id,
         user_id: userId,
-        role: 'ADMIN',
+        organization_role: 'ADMIN',
       })
 
       return reply.status(201).send({

@@ -2,9 +2,9 @@
 
 import { defineAbilityFor } from '../../db/auth/index.ts'
 import { userSchema } from '../../db/auth/models/user.ts'
-import type { Role } from '../../db/schema/enums/role.ts'
+import type { RoleType } from '../../db/schema/enums.ts'
 
-export function getUserPermissions(userId: string, role: Role) {
+export function getUserPermissions(userId: string, role: RoleType) {
   const authUser = userSchema.parse({
     id: userId,
     role,

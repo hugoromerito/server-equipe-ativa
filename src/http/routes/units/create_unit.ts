@@ -1,11 +1,11 @@
+import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
+import { members, units } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
-import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { createSlug } from '../../utils/create-slug.ts'
-import { and, eq } from 'drizzle-orm'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
@@ -45,7 +45,7 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
       }
 
       // Verifica se o usuário tem permissão ADMIN
-      if (membership.role !== 'ADMIN') {
+      if (membership.organization_role !== 'ADMIN') {
         throw new BadRequestError('Apenas administradores podem criar unidades')
       }
 
@@ -53,23 +53,40 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
 
       const existing = await db.query.units.findFirst({
         where: and(
-          eq(schema.units.slug, unitSlug),
-          eq(schema.units.organization_id, organization.id)
-        )
+          eq(units.slug, unitSlug),
+          eq(units.organization_id, organization.id)
+        ),
       })
 
-      if(existing) {
-        throw new BadRequestError('Já existe uma unidade com o mesmo nome na organização.')
+      if (existing) {
+        throw new BadRequestError(
+          'Já existe uma unidade com o mesmo nome na organização.'
+        )
       }
 
-      const [newUnit] = await db.insert(schema.units).values({
-        name,
-        slug: unitSlug,
-        description,
-        location,
+      const [newUnit] = await db
+        .insert(units)
+        .values({
+          name,
+          slug: unitSlug,
+          description,
+          location,
+          organization_id: organization.id,
+          owner_id: userId,
+        })
+        .returning()
+
+      if (!newUnit) {
+        throw new BadRequestError('Erro ao criar unidade.')
+      }
+
+      await db.insert(members).values({
+        unit_id: newUnit.id,
         organization_id: organization.id,
-        owner_id: userId,
-      }).returning()
+        user_id: userId,
+        organization_role: membership.organization_role,
+        unit_role: 'ADMIN',
+      })
 
       return reply.status(201).send({
         unitId: newUnit.id,

@@ -1,6 +1,6 @@
 @baseUrl = http://localhost:3333
 @organizationSlug = escritorio
-@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYTRkMDYzOS0xYzM4LTRkNjYtYTVmNi1mMWRiNGY0ODE1ZjQiLCJpYXQiOjE3NTIzMzU2MjIsImV4cCI6MTc1Mjk0MDQyMn0._Y1d_gwC-nI6sJqpdFUjXzVIGH9aH3jdhHmeAS9SsY0
+@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYTRkMDYzOS0xYzM4LTRkNjYtYTVmNi1mMWRiNGY0ODE1ZjQiLCJpYXQiOjE3NTUxOTA1MTksImV4cCI6MTc1NTc5NTMxOX0.dB5dZEFxUnvlmrFtzul1klDH9waydj4AENuMP_L4T0c
 
 
 ###
@@ -24,6 +24,7 @@ GET {{baseUrl}}/users
 # @name autenticação_com_email_e_senha
 POST {{baseUrl}}/sessions/password
 Content-Type: application/json
+
 {
   "email": "hugo1@gmail.com",
   "password": "romerito"
@@ -77,7 +78,7 @@ Authorization: {{tokenAuth}}
 Content-Type: application/json
  
 {
-  "name": "Policlínica Santa_Maria",
+  "name": "Policlínica Barro Vermelho",
   "description": "Atendimento clinico",
   "location": "Santa Maria"
 }
@@ -130,11 +131,61 @@ Authorization: {{tokenAuth}}
 ###
 
 # @name retorna_informações_de_membro_do_usuário
-GET {{baseUrl}}/organizations/{{organizationSlug}}/units/policlinica-santamaria/members
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/policlinica-barro-vermelho/members
 Authorization: {{tokenAuth}}
+
+###
+
+# @name cria_convite
+POST {{baseUrl}}/organizations/{{organizationSlug}}/invites
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+ 
+{
+  "email": "hugo2@gmail.com",
+  "role": "CLERK",
+  "unitSlug": "policlinica-santamaria"
+}
+
+###
+
+# @name retorna_informações_de_membro_do_usuário
+GET {{baseUrl}}/invites
+Authorization: {{tokenAuth}}
+
 
 ###
 
 # @name deleta_organização
 DELETE  {{baseUrl}}/organizations/{{organizationSlug}}
 Authorization: {{tokenAuth}}
+
+###
+
+
+# @name cria_convite
+POST {{baseUrl}}/organizations/{{organizationSlug}}/applicants
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+ 
+{
+  "name": "Hugo de Souza De Queiroz",
+  "birthdate": "2000-11-21",
+  "cpf": "20474669700",
+  "phone": "1234567890",
+  "mother": "as",
+  "father": "as"
+}
+
+###
+
+GET {{baseUrl}}/organizations/escritorio/units/policlinica-santamaria/demands?page=1&limit=20&sort_by=created_at&sort_order=desc
+Authorization: {{tokenAuth}}
+
+
+###
+
+GET http://localhost:3333/organizations/escritorio/units/policlinica-santamaria/demands
+Authorization: {{tokenAuth}}
+
+###

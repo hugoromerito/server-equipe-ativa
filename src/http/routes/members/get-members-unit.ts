@@ -1,24 +1,19 @@
-// import type { FastifyInstance } from 'fastify'
-// import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-// import { z } from 'zod'
-
+import { differenceInMinutes } from 'date-fns'
 import { and, asc, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
-import { roleSchema } from '../../../db/auth/roles.ts'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
+import {
+  members,
+  organizations,
+  roleZodEnum,
+  units,
+  users,
+} from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
-
-// import { auth } from '@/http/middlewares/auth'
-// import { UnauthorizedError } from '@/http/routes/_errors/unauthorized-error'
-// import { prisma } from '@/lib/prisma'
-// import { getUserPermissions } from '@/utils/get-user-permissions'
-// import { BadRequestError } from '../_errors/bad-request-error'
-// import { roleSchema } from '@/auth/src'
 
 export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
@@ -38,10 +33,12 @@ export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
               z.object({
                 id: z.uuid(),
                 userId: z.uuid(),
-                role: roleSchema,
+                unitRole: roleZodEnum,
                 name: z.string().nullable(),
                 email: z.email(),
                 avatarUrl: z.url().nullable(),
+                lastSeen: z.date(),
+                isOnline: z.boolean(),
               })
             ),
           }),
@@ -54,7 +51,10 @@ export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
       const { organization, membership } =
         await request.getUserMembership(organizationSlug)
 
-      const { cannot } = getUserPermissions(userId, membership.role)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.unit_role || membership.organization_role
+      )
 
       if (cannot('get', 'User')) {
         throw new UnauthorizedError(
@@ -63,16 +63,13 @@ export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
       }
 
       const unit = await db
-        .select({ id: schema.units.id, slug: schema.units.slug })
-        .from(schema.units)
-        .innerJoin(
-          schema.organizations,
-          eq(schema.units.organization_id, schema.organizations.id)
-        )
+        .select({ id: units.id, slug: units.slug })
+        .from(units)
+        .innerJoin(organizations, eq(units.organization_id, organizations.id))
         .where(
           and(
-            eq(schema.organizations.slug, organizationSlug),
-            eq(schema.units.slug, unitSlug)
+            eq(organizations.slug, organizationSlug),
+            eq(units.slug, unitSlug)
           )
         )
         .limit(1)
@@ -83,33 +80,55 @@ export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
 
       const membersResult = await db
         .select({
-          id: schema.members.id,
-          role: schema.members.role,
-          userId: schema.users.id,
-          name: schema.users.name,
-          email: schema.users.email,
-          avatarUrl: schema.users.avatar_url,
+          id: members.id,
+          unitRole: members.unit_role,
+          orgRole: members.organization_role,
+          userId: users.id,
+          name: users.name,
+          email: users.email,
+          avatarUrl: users.avatar_url,
+          lastSeen: users.last_seen,
         })
-        .from(schema.members)
-        .leftJoin(schema.users, eq(schema.members.user_id, schema.users.id))
+        .from(members)
+        .leftJoin(users, eq(members.user_id, users.id))
         .where(
           and(
-            eq(schema.members.organization_id, organization.id),
-            eq(schema.members.unit_id, unit[0].id)
+            eq(members.organization_id, organization.id),
+            eq(members.unit_id, unit[0].id)
           )
         )
-        .orderBy(asc(schema.members.role))
+        .orderBy(asc(members.unit_role || members.organization_role))
 
       const membersWithRoles = membersResult
         .filter((member) => member.userId !== null) // Filtra membros sem usuário associado
-        .map((member) => ({
-          id: member.id,
-          userId: member.userId || '', // ou throw error se null
-          role: member.role,
-          name: member.name,
-          email: member.email || '', // ou throw error se null
-          avatarUrl: member.avatarUrl,
-        }))
+        .map((member) => {
+          // Se não tiver unitRole, usa orgRole
+          const finalRole = member.unitRole || member.orgRole
+
+          if (!finalRole) {
+            throw new Error('Member sem unitRole nem orgRole.')
+          }
+          if (!member.lastSeen) {
+            throw new Error(
+              `lastSeen está ausente para o usuário ${member.userId}`
+            )
+          }
+
+          const isOnline =
+            member.lastSeen &&
+            differenceInMinutes(new Date(), new Date(member.lastSeen)) <= 5
+
+          return {
+            id: member.id,
+            userId: member.userId || '', // ou throw error se null
+            unitRole: finalRole,
+            name: member.name,
+            email: member.email || '', // ou throw error se null
+            avatarUrl: member.avatarUrl,
+            lastSeen: member.lastSeen,
+            isOnline,
+          }
+        })
 
       return reply.send({ members: membersWithRoles })
     }

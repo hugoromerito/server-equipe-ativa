@@ -1,33 +1,203 @@
-// import { auth } from '@/http/middlewares/auth'
-// import { prisma } from '@/lib/prisma'
-// import type { FastifyInstance } from 'fastify'
-// import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-// import z from 'zod'
-// import { BadRequestError } from '../_errors/bad-request-error'
-// import { getUserPermissions } from '@/utils/get-user-permissions'
-// import { UnauthorizedError } from '../_errors/unauthorized-error'
-// import { roleSchema } from '@/auth/src'
-
+import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
-import { roleSchema } from '../../../db/auth/roles.ts'
+import { db } from '../../../db/connection.ts'
+import { roleZodEnum } from '../../../db/schema/enums.ts'
+import {
+  invites,
+  members,
+  organizations,
+  units,
+  users,
+} from '../../../db/schema/index.ts' // Ajuste o caminho conforme necessário
 import { auth } from '../../middlewares/auth.ts'
+import { getUserPermissions } from '../../utils/get-user-permissions.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+
+// Função auxiliar para buscar organização
+async function getOrganizationBySlug(slug: string) {
+  const organization = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.slug, slug))
+    .limit(1)
+
+  if (!organization[0]) {
+    throw new BadRequestError('Organização não encontrada.')
+  }
+
+  return organization[0]
+}
+
+// Função auxiliar para verificar membership
+async function getUserMembership(userId: string, organizationId: string) {
+  const membership = await db
+    .select()
+    .from(members)
+    .where(
+      and(
+        eq(members.user_id, userId),
+        eq(members.organization_id, organizationId)
+      )
+    )
+    .limit(1)
+
+  if (!membership[0]) {
+    throw new UnauthorizedError('Você não pertence a esta organização.')
+  }
+
+  return membership[0]
+}
+
+// Função auxiliar para verificar domínio automático
+function checkAutomaticDomain(
+  org: typeof organizations.$inferSelect,
+  email: string
+) {
+  const [, domain] = email.split('@')
+
+  if (org.should_attach_users_by_domain && org.domain === domain) {
+    throw new BadRequestError(
+      `Users with "${domain}" domain will join your organization automatically on login.`
+    )
+  }
+}
+
+// Função auxiliar para buscar unidade
+async function getUnitBySlug(unitSlug: string, organizationId: string) {
+  const unitResult = await db
+    .select()
+    .from(units)
+    .where(
+      and(eq(units.slug, unitSlug), eq(units.organization_id, organizationId))
+    )
+    .limit(1)
+
+  if (!unitResult[0]) {
+    throw new BadRequestError(
+      'Unidade não encontrada ou não pertence à organização.'
+    )
+  }
+
+  return unitResult[0]
+}
+
+// Função auxiliar para verificar convite existente
+async function checkExistingInvite(
+  email: string,
+  organizationId: string,
+  unitId: string | null
+) {
+  const conditions = [
+    eq(invites.email, email),
+    eq(invites.organization_id, organizationId),
+    unitId ? eq(invites.unit_id, unitId) : isNull(invites.unit_id),
+  ]
+
+  const existingInvite = await db
+    .select()
+    .from(invites)
+    .where(and(...conditions))
+    .limit(1)
+
+  if (existingInvite[0]) {
+    throw new BadRequestError(
+      unitId
+        ? 'Já existe outro convite com o mesmo e-mail para esta unidade.'
+        : 'Já existe outro convite com o mesmo e-mail para esta organização.'
+    )
+  }
+}
+
+// Função auxiliar para verificar membro existente para convite de unidade
+async function checkExistingMemberForUnit(
+  email: string,
+  organizationId: string,
+  unitId: string,
+  role: string
+) {
+  const memberInUnit = await db
+    .select({
+      id: members.id,
+      organization_role: members.organization_role,
+    })
+    .from(members)
+    .innerJoin(users, eq(users.id, members.user_id))
+    .where(
+      and(
+        eq(users.email, email),
+        eq(members.organization_id, organizationId),
+        eq(members.unit_id, unitId)
+      )
+    )
+    .limit(1)
+
+  if (memberInUnit[0]) {
+    throw new BadRequestError(
+      'Um membro com este e-mail já pertence a esta unidade.'
+    )
+  }
+
+  // Verificar se já é membro da organização
+  const memberInOrg = await db
+    .select({
+      id: members.id,
+      organization_role: members.organization_role,
+    })
+    .from(members)
+    .innerJoin(users, eq(users.id, members.user_id))
+    .where(
+      and(eq(users.email, email), eq(members.organization_id, organizationId))
+    )
+    .limit(1)
+
+  if (memberInOrg[0] && memberInOrg[0].organization_role !== role) {
+    throw new BadRequestError(
+      `Este usuário já é membro da organização com o cargo "${memberInOrg[0].organization_role}". Para convidar para uma unidade, use o mesmo cargo.`
+    )
+  }
+}
+
+// Função auxiliar para verificar membro existente para convite de organização
+async function checkExistingMemberForOrganization(
+  email: string,
+  organizationId: string
+) {
+  const memberInOrg = await db
+    .select({
+      id: members.id,
+      organization_role: members.organization_role,
+    })
+    .from(members)
+    .innerJoin(users, eq(users.id, members.user_id))
+    .where(
+      and(eq(users.email, email), eq(members.organization_id, organizationId))
+    )
+    .limit(1)
+
+  if (memberInOrg[0]) {
+    throw new BadRequestError(
+      'Um membro com este e-mail já pertence à organização.'
+    )
+  }
+}
 
 export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
-    '/organizations/:organizationSlug/units/:unitSlug/invites',
+    '/organizations/:organizationSlug/invites',
     {
       schema: {
         tags: ['invites'],
-        summary: 'Create a new invite',
+        summary: 'Create a new invite for organization or unit',
         security: [{ bearerAuth: [] }],
         body: z.object({
           email: z.email(),
-          role: roleSchema,
+          role: roleZodEnum,
+          unitSlug: z.string().optional(),
         }),
         params: z.object({
           organizationSlug: z.string(),
-          unitSlug: z.string(),
         }),
         response: {
           201: z.object({
@@ -37,14 +207,19 @@ export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
       },
     },
     async (request, reply) => {
-      const { organizationSlug, unitSlug } = request.params
+      const { organizationSlug } = request.params
       const userId = await request.getCurrentUserId()
-      const { organization, membership } = await request.getUserMembership(
-        organizationSlug,
-        unitSlug
-      )
+      const { email, role, unitSlug } = request.body
 
-      const { cannot } = getUserPermissions(userId, membership.role)
+      // Buscar organização
+      const org = await getOrganizationBySlug(organizationSlug)
+
+      // Verificar membership e permissões
+      const membership = await getUserMembership(userId, org.id)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.organization_role
+      )
 
       if (cannot('create', 'Invite')) {
         throw new UnauthorizedError(
@@ -52,105 +227,40 @@ export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
         )
       }
 
-      const { email, role } = request.body
+      // Verificar domínio automático
+      checkAutomaticDomain(org, email)
 
-      const [, domain] = email.split('@')
-
-      if (
-        organization.shouldAttachUsersByDomain &&
-        organization.domain === domain
-      ) {
-        throw new BadRequestError(
-          `Users with "${domain}" domain will join your organization automatically on login.`
-        )
+      // Processar unidade se fornecida
+      let unitId: string | null = null
+      if (unitSlug) {
+        const unit = await getUnitBySlug(unitSlug, org.id)
+        unitId = unit.id
       }
 
-      const unit = await prisma.unit.findFirst({
-        where: {
-          slug: unitSlug,
-          organization: {
-            slug: organizationSlug,
-          },
-        },
-      })
+      // Verificar convite existente
+      await checkExistingInvite(email, org.id, unitId)
 
-      if (!unit) {
-        throw new BadRequestError(
-          'Unidade não encontrada ou não pertence à organização.'
-        )
+      // Verificar membro existente
+      if (unitId) {
+        await checkExistingMemberForUnit(email, org.id, unitId, role)
+      } else {
+        await checkExistingMemberForOrganization(email, org.id)
       }
 
-      const inviteWithSameEmail = await prisma.invite.findUnique({
-        where: {
-          email_organizationId_unitId: {
-            email,
-            organizationId: organization.id,
-            unitId: unit.id,
-          },
-        },
-      })
-
-      if (inviteWithSameEmail) {
-        throw new BadRequestError('Já existe outro convite com o mesmo e-mail.')
-      }
-
-      // Verifica se já existe um membro com o mesmo e-mail na mesma unidade e organização
-      const memberWithSameEmail = await prisma.member.findFirst({
-        where: {
-          organizationId: organization.id,
-          unitId: unit.id, // Usando o id da unit verificada
-          user: {
-            email,
-          },
-        },
-      })
-
-      if (memberWithSameEmail) {
-        throw new BadRequestError(
-          'Um membro com este e-mail já pertence à sua organização.'
-        )
-      }
-
-      const memberWithSameEmailOrgWide = await prisma.member.findFirst({
-        where: {
-          organizationId: organization.id,
-          user: {
-            email,
-          },
-        },
-      })
-
-      if (memberWithSameEmailOrgWide) {
-        if (memberWithSameEmailOrgWide.role !== role) {
-          throw new BadRequestError(
-            `Este e-mail já pertence a um membro da organização com o cargo "${memberWithSameEmailOrgWide.role}". Você não pode convidar com um cargo diferente.`
-          )
-        }
-
-        // Verifica se esse membro já pertence à mesma unidade
-        if (memberWithSameEmailOrgWide.unitId === unit.id) {
-          throw new BadRequestError(
-            'Um membro com este e-mail já pertence a esta unidade da organização.'
-          )
-        }
-
-        // Se é o mesmo membro na org mas não na unidade, você pode optar por permitir o convite para outra unidade, se desejar.
-        // Caso NÃO queira permitir, lance erro aqui também.
-        // throw new BadRequestError('Este membro já pertence à organização e não pode ser convidado para outra unidade.')
-      }
-
-      const invite = await prisma.invite.create({
-        data: {
-          organizationId: organization.id,
+      // Criar o convite
+      const newInvite = await db
+        .insert(invites)
+        .values({
+          organization_id: org.id,
           email,
           role,
-          unitId: unit.id,
-          authorId: userId,
-        },
-      })
+          unit_id: unitId,
+          author_id: userId,
+        })
+        .returning({ id: invites.id })
 
       return reply.status(201).send({
-        inviteId: invite.id,
+        inviteId: newInvite[0].id,
       })
     }
   )

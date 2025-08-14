@@ -3,9 +3,7 @@ import { eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
-import { tokens } from '../../../db/schema/modules/tokens.ts'
-import { users } from '../../../db/schema/modules/users.ts'
+import { tokens, users } from '../../../db/schema/index.ts'
 
 export const resetPasswordRoute: FastifyPluginCallbackZod = (app) => {
   app.post(
@@ -37,7 +35,7 @@ export const resetPasswordRoute: FastifyPluginCallbackZod = (app) => {
       const password_hash = await hash(password, 12)
 
       const [updatePassword] = await db
-        .update(schema.users)
+        .update(users)
         .set({ password_hash })
         .where(eq(users.id, tokenFromCode.user_id))
         .returning()

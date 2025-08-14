@@ -1,33 +1,39 @@
-import { prisma } from '@/lib/prisma'
-import type { FastifyInstance } from 'fastify'
-import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-import z from 'zod'
-import { BadRequestError } from '../_errors/bad-request-error'
-import { roleSchema } from '@/auth/src'
+import { eq } from 'drizzle-orm'
+import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
+import { z } from 'zod/v4'
+import { db } from '../../../db/connection.ts'
+import { roleZodEnum } from '../../../db/schema/enums.ts'
+import {
+  invites,
+  organizations,
+  units,
+  users,
+} from '../../../db/schema/index.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
 
-export async function getInvite(app: FastifyInstance) {
-  app.withTypeProvider<ZodTypeProvider>().get(
+export const getInviteRoute: FastifyPluginCallbackZod = (app) => {
+  app.get(
     '/invites/:inviteId',
     {
       schema: {
         tags: ['invites'],
         summary: 'Get an invite',
         params: z.object({
-          inviteId: z.string().uuid(),
+          inviteId: z.uuid(),
         }),
         response: {
           200: z
             .object({
               invite: z.object({
-                id: z.string().uuid(),
-                email: z.string().email(),
-                role: roleSchema,
+                id: z.uuid(),
+                email: z.email(),
+                role: roleZodEnum,
                 createdAt: z.date(),
                 author: z
                   .object({
-                    id: z.string().uuid(),
+                    id: z.uuid(),
                     name: z.string().nullable(),
-                    avatarUrl: z.string().url().nullable(),
+                    avatarUrl: z.url().nullable(),
                   })
                   .nullable(),
                 unit: z
@@ -48,41 +54,57 @@ export async function getInvite(app: FastifyInstance) {
     async (request) => {
       const { inviteId } = request.params
 
-      const invite = await prisma.invite.findUnique({
-        where: {
-          id: inviteId,
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true,
-            },
-          },
-          unit: {
-            select: {
-              name: true,
-              location: true,
-              organization: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      })
+      const inviteData = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          createdAt: invites.created_at,
+          authorId: users.id,
+          authorName: users.name,
+          authorAvatarUrl: users.avatar_url,
+          unitName: units.name,
+          unitLocation: units.location,
+          organizationName: organizations.name,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.author_id, users.id))
+        .leftJoin(units, eq(invites.unit_id, units.id))
+        .leftJoin(organizations, eq(units.organization_id, organizations.id))
+        .where(eq(invites.id, inviteId))
+        .limit(1)
 
-      if (!invite) {
+      if (!inviteData[0]) {
         throw new BadRequestError('Convite não encontrado.')
       }
 
+      const invite = {
+        id: inviteData[0].id,
+        email: inviteData[0].email,
+        role: inviteData[0].role,
+        createdAt: new Date(inviteData[0].createdAt),
+        author: inviteData[0].authorId
+          ? {
+              id: inviteData[0].authorId,
+              name: inviteData[0].authorName,
+              avatarUrl: inviteData[0].authorAvatarUrl,
+            }
+          : null,
+        unit:
+          inviteData[0].unitName &&
+          inviteData[0].organizationName &&
+          inviteData[0].unitLocation
+            ? {
+                name: inviteData[0].unitName,
+                location: inviteData[0].unitLocation,
+                organization: {
+                  name: inviteData[0].organizationName,
+                },
+              }
+            : null,
+      }
+
       return { invite }
-    },
+    }
   )
 }

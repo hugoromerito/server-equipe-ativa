@@ -3,9 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
-import { organizations } from '../../../db/schema/modules/organizations.ts'
-import { users } from '../../../db/schema/modules/users.ts'
+import { members, organizations, users } from '../../../db/schema/index.ts'
 
 // import { BadRequestError } from '../_errors/bad-request-error'
 
@@ -46,7 +44,7 @@ export const createUserRoute: FastifyPluginCallbackZod = (app) => {
       const password_hash = await hash(password, 12)
 
       const [newUser] = await db
-        .insert(schema.users)
+        .insert(users)
         .values({
           name,
           email,
@@ -55,7 +53,7 @@ export const createUserRoute: FastifyPluginCallbackZod = (app) => {
         .returning()
 
       if (autoJoinOrganization) {
-        await db.insert(schema.members).values({
+        await db.insert(members).values({
           user_id: newUser.id,
           organization_id: autoJoinOrganization.id,
         })

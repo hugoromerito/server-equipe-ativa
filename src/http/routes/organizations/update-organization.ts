@@ -3,7 +3,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { organizationSchema } from '../../../db/auth/models/organization.ts'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
+import { organizations } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
@@ -40,7 +40,10 @@ export const updateOrganizationRoute: FastifyPluginCallbackZod = (app) => {
 
       const authOrganization = organizationSchema.parse(organization)
 
-      const { cannot } = getUserPermissions(userId, membership.role)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.organization_role
+      )
 
       if (cannot('update', authOrganization)) {
         throw new UnauthorizedError(
@@ -51,8 +54,8 @@ export const updateOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       if (domain) {
         const organizationByDomain = await db.query.organizations.findFirst({
           where: and(
-            eq(schema.organizations.domain, domain),
-            not(eq(schema.organizations.id, organization.id))
+            eq(organizations.domain, domain),
+            not(eq(organizations.id, organization.id))
           ),
         })
 
@@ -64,13 +67,13 @@ export const updateOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       }
 
       const [updateOrganization] = await db
-        .update(schema.organizations)
+        .update(organizations)
         .set({
           name,
           domain,
           should_attach_users_by_domain: shouldAttachUsersByDomain,
         })
-        .where(eq(schema.organizations.id, organization.id))
+        .where(eq(organizations.id, organization.id))
         .returning()
 
       if (!updateOrganization) {

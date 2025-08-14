@@ -1,6 +1,11 @@
-import { openai } from '@/ai/openai'
+import { openai } from '@ai-sdk/openai'
 import { generateText } from 'ai'
-import { DemandCategory, DemandPriority } from '@prisma/client'
+import {
+  type DemandCategoryType,
+  type DemandPriorityType,
+  demandCategoryZodEnum,
+  demandPriorityZodEnum,
+} from '../../db/schema/enums.ts'
 
 interface ClassifyDemandAiParams {
   description: string
@@ -9,14 +14,14 @@ interface ClassifyDemandAiParams {
 export async function classifyDemandAi({
   description,
 }: ClassifyDemandAiParams) {
-  const categoryOptions = Object.values(DemandCategory)
-  const priorityOptions = Object.values(DemandPriority)
+  const categoryOptions = demandCategoryZodEnum.options
+  const priorityOptions = demandPriorityZodEnum.options
 
   const categoryList = categoryOptions.map((cat) => `- ${cat}`).join('\n')
   const priorityList = priorityOptions.map((prio) => `- ${prio}`).join('\n')
 
   const answer = await generateText({
-    model: openai,
+    model: openai('gpt-4o'),
     prompt: description,
     system: `
 Você é um classificador de demandas. A partir da descrição fornecida, retorne apenas um objeto JSON com os seguintes campos:
@@ -42,19 +47,19 @@ Responda apenas com o JSON. Não adicione nenhum texto explicativo (sem incluir 
     const result = JSON.parse(answer.text)
 
     // Verificação para garantir que o retorno é válido
-    if (
-      !categoryOptions.includes(result.category) ||
-      !priorityOptions.includes(result.priority)
-    ) {
-      throw new Error('Categoria ou prioridade inválida')
+    if (!categoryOptions.includes(result.category)) {
+      throw new Error('Categoria inválida')
+    }
+    if (!priorityOptions.includes(result.priority)) {
+      throw new Error('Prioridade inválida')
     }
 
     return {
-      category: result.category as DemandCategory,
-      priority: result.priority as DemandPriority,
+      category: result.category as DemandCategoryType,
+      priority: result.priority as DemandPriorityType,
     }
-  } catch (error) {
-    console.error('Erro ao interpretar resposta da IA:', answer.text)
+  } catch (_error) {
+    // console.error('Erro ao interpretar resposta da IA:', answer.text)
     throw new Error('A resposta da IA não está em um formato válido.')
   }
 }

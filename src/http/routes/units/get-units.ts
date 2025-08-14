@@ -2,8 +2,7 @@ import { and, eq, or } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { schema } from '../../../db/schema/index.ts'
-import { members } from '../../../db/schema/modules/members.ts'
+import { members, organizations, units } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 
 export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
@@ -39,10 +38,10 @@ export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
 
       const [organization] = await db
         .select({
-          id: schema.organizations.id,
+          id: organizations.id,
         })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.slug, organizationsSlug))
+        .from(organizations)
+        .where(eq(organizations.slug, organizationsSlug))
 
       if (!organization) {
         return { units: [] }
@@ -50,22 +49,22 @@ export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
 
       const unitsResult = await db
         .select({
-          id: schema.units.id,
-          name: schema.units.name,
-          slug: schema.units.slug,
-          description: schema.units.description,
-          location: schema.units.location,
-          ownerId: schema.units.owner_id,
+          id: units.id,
+          name: units.name,
+          slug: units.slug,
+          description: units.description,
+          location: units.location,
+          ownerId: units.owner_id,
         })
-        .from(schema.units)
+        .from(units)
         .leftJoin(
           members,
-          and(eq(members.unit_id, schema.units.id), eq(members.user_id, userId))
+          and(eq(members.unit_id, units.id), eq(members.user_id, userId))
         )
         .where(
           and(
-            eq(schema.units.organization_id, organization.id),
-            or(eq(schema.units.owner_id, userId), eq(members.user_id, userId))
+            eq(units.organization_id, organization.id),
+            or(eq(units.owner_id, userId), eq(members.user_id, userId))
           )
         )
 

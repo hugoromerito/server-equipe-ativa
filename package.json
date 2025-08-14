@@ -21,16 +21,20 @@
     "ultracite": "5.0.32"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.23",
     "@casl/ability": "^6.7.3",
     "@fastify/cors": "^11.0.1",
     "@fastify/jwt": "^9.1.0",
     "@t3-oss/env-nextjs": "^0.13.8",
+    "ai": "^4.3.19",
     "bcryptjs": "^3.0.2",
+    "date-fns": "^4.1.0",
     "dotenv-cli": "^8.0.0",
     "drizzle-orm": "^0.44.2",
     "fastify": "^5.4.0",
     "fastify-type-provider-zod": "^5.0.2",
     "postgres": "^3.4.7",
+    "validation-br": "^1.5.2",
     "zod": "^3.25.76"
   }
 }

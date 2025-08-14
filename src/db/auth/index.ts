@@ -15,15 +15,6 @@ import { organizationSubject } from './subjects/organization.ts'
 import { unitSubject } from './subjects/unit.ts'
 import { userSubject } from './subjects/user.ts'
 
-export * from './demand-category.ts'
-export * from './demand-priority.ts'
-export * from './demand-status.ts'
-export * from './models/demand.ts'
-export * from './models/organization.ts'
-export * from './models/unit.ts'
-export * from './models/user.ts'
-export * from './roles.ts'
-
 const appAbilities = z.union([
   userSubject,
   unitSubject,

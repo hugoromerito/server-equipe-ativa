@@ -3,7 +3,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { organizationSchema } from '../../../db/auth/models/organization.ts'
 import { db } from '../../../db/connection.ts'
-import { organizations } from '../../../db/schema/modules/organizations.ts'
+import { organizations } from '../../../db/schema/index.ts'
 import { auth } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -35,7 +35,10 @@ export const shutdownOrganizationRoute: FastifyPluginCallbackZod = (app) => {
         ownerId: organization.owner_id,
       })
 
-      const { cannot } = getUserPermissions(userId, membership.role)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.organization_role
+      )
 
       if (cannot('delete', authOrganization)) {
         throw new UnauthorizedError(
