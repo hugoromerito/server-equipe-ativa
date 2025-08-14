@@ -8,7 +8,7 @@ import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
-    '/organizations/:organizationSlug/applicant/:applicantSlug',
+    '/organizations/:organizationSlug/applicant/:applicantSlug/demands',
     {
       schema: {
         tags: ['applicants'],
