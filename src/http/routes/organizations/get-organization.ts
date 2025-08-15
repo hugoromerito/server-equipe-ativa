@@ -1,13 +1,14 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 
 export const getOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations/:slug',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['organizations'],
+        tags: ['Organizations'],
         summary: 'Get details from organization',
         security: [{ bearerAuth: [] }],
         params: z.object({

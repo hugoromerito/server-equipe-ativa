@@ -4,7 +4,7 @@ import { z } from 'zod/v4'
 import { organizationSchema } from '../../../db/auth/models/organization.ts'
 import { db } from '../../../db/connection.ts'
 import { organizations } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -13,8 +13,9 @@ export const updateOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).put(
     '/organizations/:slug',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['organizations'],
+        tags: ['Organizations'],
         summary: 'Update organization details',
         security: [{ bearerAuth: [] }],
         body: z.object({

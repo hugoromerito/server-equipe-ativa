@@ -10,7 +10,7 @@ import {
   units,
   users,
 } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -19,6 +19,7 @@ export const getMembersUnitRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations/:organizationSlug/units/:unitSlug/members',
     {
+      preHandler: [authPreHandler],
       schema: {
         tags: ['Members'],
         summary: 'Get all members from a specific unit within the organization',

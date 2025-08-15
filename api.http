@@ -1,6 +1,6 @@
-@baseUrl = http://localhost:3333
-@organizationSlug = escritorio
-@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYTRkMDYzOS0xYzM4LTRkNjYtYTVmNi1mMWRiNGY0ODE1ZjQiLCJpYXQiOjE3NTUxOTA1MTksImV4cCI6MTc1NTc5NTMxOX0.dB5dZEFxUnvlmrFtzul1klDH9waydj4AENuMP_L4T0c
+@baseUrl = https://animated-spoon-4rg975jr4xxcj7pw-3333.app.github.dev
+@organizationSlug = ubs
+@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYTQ1NjY0MC0xMmY3LTQ2ZGItYjk0ZC1mNjZlZGQ0N2NhNDUiLCJpYXQiOjE3NTUyODY3NTMsImV4cCI6MTc1NTg5MTU1M30.A6QbMso08eaqppLUxwWIcuSsGFmcRzR8jgrG8BMYFdg
 
 
 ###
@@ -8,9 +8,10 @@
 # @name cria_novo_usuário
 POST {{baseUrl}}/users
 Content-Type: application/json
+
 {
-  "name": "Teste",
-  "email": "hugo2@gmail.com",
+  "name": "Romerito",
+  "email": "hugo1@gmail.com",
   "password": "romerito"
 }
 
@@ -18,6 +19,7 @@ Content-Type: application/json
 
 # @name retorna_todos_usuários
 GET {{baseUrl}}/users
+Authorization: {{tokenAuth}}
 
 ###
 
@@ -35,6 +37,7 @@ Content-Type: application/json
 # @name cria_token_para_alterar_senha
 POST {{baseUrl}}/password/recover
 Content-Type: application/json
+
 {
   "email": "hugo2@gmail.com"
 }
@@ -66,7 +69,7 @@ Authorization: {{tokenAuth}}
 Content-Type: application/json
  
 {
-  "name": "Escritório"
+  "name": "UBS"
 }
 
 
@@ -144,7 +147,7 @@ Content-Type: application/json
 {
   "email": "hugo2@gmail.com",
   "role": "CLERK",
-  "unitSlug": "policlinica-santamaria"
+  "unitSlug": "policlinica-barro-vermelho"
 }
 
 ###
@@ -179,13 +182,13 @@ Content-Type: application/json
 
 ###
 
-GET {{baseUrl}}/organizations/escritorio/units/policlinica-santamaria/demands?page=1&limit=20&sort_by=created_at&sort_order=desc
+GET {{baseUrl}}/organizations/ubs/units/policlinica-barro-vermelho/demands?page=1&limit=20&sort_by=created_at&sort_order=desc
 Authorization: {{tokenAuth}}
 
 
 ###
 
-GET http://localhost:3333/organizations/escritorio/units/policlinica-santamaria/demands
+GET http://localhost:3333/organizations/ubs/units/policlinica-barro-vermelho/demands
 Authorization: {{tokenAuth}}
 
 ###

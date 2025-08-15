@@ -3,15 +3,16 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { invites, members, users } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/invites/:inviteId/accept',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['invites'],
+        tags: ['Invites'],
         summary: 'Accept an invite',
         security: [{ bearerAuth: [] }],
         params: z.object({

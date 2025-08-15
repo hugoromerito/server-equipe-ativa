@@ -1,5 +1,7 @@
 import { fastifyCors } from '@fastify/cors'
 import fastifyJwt from '@fastify/jwt'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { eq } from 'drizzle-orm'
 import { fastify } from 'fastify'
 import {
@@ -75,6 +77,39 @@ app.register(auth)
 app.setSerializerCompiler(serializerCompiler)
 app.setValidatorCompiler(validatorCompiler)
 
+app.register(swagger, {
+  openapi: {
+    info: {
+      title: 'Equipe Ativa API',
+      description: 'Documentação da API Equipe Ativa',
+      version: '1.0.0',
+    },
+    servers: [{ url: `http://localhost:${env.PORT}` }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+  },
+})
+
+app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false,
+  },
+  staticCSP: true,
+  transformSpecification: (swaggerObject, _request, _reply) => {
+    return swaggerObject
+  },
+  transformSpecificationClone: true,
+})
+
 app.get('/health', () => {
   return 'OK'
 })
@@ -124,5 +159,7 @@ app.register(getUnitsRoute)
 // Users
 app.register(getUsersRoute)
 app.register(createUserRoute)
+
+
 
 app.listen({ port: env.PORT })

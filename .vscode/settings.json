@@ -8,6 +8,9 @@
     80,
     120
   ],
+  "editor.fontFamily": "'Fira Code', monospace",
+  "editor.fontLigatures": true,
+  "terminal.integrated.fontFamily": "'Fira Code', monospace",
   "extensions.ignoreRecommendations": true,
   "typescript.tsserver.log": "off",
   "editor.stickyScroll.enabled": false,
@@ -58,7 +61,6 @@
     "FIG_NEW_SESSION": "1"
   },
   "workbench.editor.labelFormat": "short",
-  "editor.fontLigatures": true,
   "emmet.includeLanguages": {
     "javascript": "javascriptreact",
     "mdx": "javascriptreact"
@@ -93,14 +95,12 @@
   "editor.accessibilitySupport": "off",
   "explorer.confirmDragAndDrop": false,
   "terminal.integrated.fontSize": 14,
-  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "explicit",
     "source.organizeImports.biome": "explicit"
   },
   "editor.semanticHighlighting.enabled": false,
   "workbench.productIconTheme": "fluent-icons",
-  "editor.fontFamily": "JetBrains Mono",
   "gitlens.codeLens.authors.enabled": false,
   "editor.tabSize": 2,
   "security.workspace.trust.untrustedFiles": "newWindow",

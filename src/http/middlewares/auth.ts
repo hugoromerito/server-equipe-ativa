@@ -2,13 +2,13 @@
 // app.register(require('@fastify/sensible'))
 
 import { and, eq, type InferSelectModel } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { fastifyPlugin } from 'fastify-plugin'
 import { db } from '../../db/connection.ts'
 import { members, organizations, units } from '../../db/schema/index.ts'
 
 declare module 'fastify' {
-  interface FastifyRequest {
+  interface FastifyRequestCustom {
     getCurrentUserId(): Promise<string>
     getUserMembership(
       organizationSlug: string,
@@ -95,3 +95,15 @@ export const auth = fastifyPlugin((app: FastifyInstance) => {
     }
   )
 })
+
+// Handler para autenticação em rotas protegidas
+export const authPreHandler = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    await request.jwtVerify()
+  } catch {
+    reply.code(401).send({ message: 'Unauthorized' })
+  }
+}

@@ -10,7 +10,7 @@ import {
   units,
   users,
 } from '../../../db/schema/index.ts' // Ajuste o caminho conforme necessário
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -187,8 +187,9 @@ export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/invites',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['invites'],
+        tags: ['Invites'],
         summary: 'Create a new invite for organization or unit',
         security: [{ bearerAuth: [] }],
         body: z.object({

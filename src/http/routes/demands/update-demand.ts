@@ -10,7 +10,7 @@ import {
   units,
   users,
 } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -19,8 +19,9 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).patch(
     '/organizations/:organizationSlug/units/:unitSlug/demands/:demandSlug',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['demands'],
+        tags: ['Demands'],
         summary: 'Update demand status and member',
         security: [{ bearerAuth: [] }],
         params: z.object({

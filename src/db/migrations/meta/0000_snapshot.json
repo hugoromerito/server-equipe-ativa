@@ -1,5 +1,5 @@
 {
-  "id": "3d0f8079-7b3d-4ef1-b1d9-53127879ef6e",
+  "id": "f7296d30-bf0b-4b1c-94d5-9484ec46faec",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -87,6 +87,165 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.tokens": {
+      "name": "tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "type": {
+          "name": "type",
+          "type": "token_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tokens_user_id_users_id_fk": {
+          "name": "tokens_user_id_users_id_fk",
+          "tableFrom": "tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_seen": {
+          "name": "last_seen",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.billings": {
+      "name": "billings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.applicants": {
       "name": "applicants",
       "schema": "",
@@ -121,6 +280,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "ticket": {
+          "name": "ticket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "mother": {
           "name": "mother",
@@ -216,39 +381,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.billings": {
-      "name": "billings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.demands": {
       "name": "demands",
       "schema": "",
@@ -278,7 +410,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'pending'"
+          "default": "'PENDING'"
         },
         "priority": {
           "name": "priority",
@@ -605,13 +737,20 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "role": {
-          "name": "role",
+        "organization_role": {
+          "name": "organization_role",
           "type": "role",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'clerk'"
+          "default": "'CLERK'"
+        },
+        "unit_role": {
+          "name": "unit_role",
+          "type": "role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "user_id": {
           "name": "user_id",
@@ -793,60 +932,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.tokens": {
-      "name": "tokens",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "type": {
-          "name": "type",
-          "type": "token_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tokens_user_id_users_id_fk": {
-          "name": "tokens_user_id_users_id_fk",
-          "tableFrom": "tokens",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.units": {
       "name": "units",
       "schema": "",
@@ -978,71 +1063,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.users": {
-      "name": "users",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "avatar_url": {
-          "name": "avatar_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "users_email_unique": {
-          "name": "users_email_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -1050,65 +1070,65 @@
       "name": "account_provider",
       "schema": "public",
       "values": [
-        "facebook",
-        "github",
-        "google"
+        "FACEBOOK",
+        "GITHUB",
+        "GOOGLE"
       ]
     },
     "public.demand_category": {
       "name": "demand_category",
       "schema": "public",
       "values": [
-        "infrastructure",
-        "health",
-        "education",
-        "social_assistance",
-        "public_safety",
-        "transportation",
-        "employment",
-        "culture",
-        "environment",
-        "human_rights",
-        "technology"
+        "INFRASTRUCTURE",
+        "HEALTH",
+        "EDUCATION",
+        "SOCIAL_ASSISTANCE",
+        "PUBLIC_SAFETY",
+        "TRANSPORTATION",
+        "EMPLOYMENT",
+        "CULTURE",
+        "ENVIRONMENT",
+        "HUMAN_RIGHTS",
+        "TECHNOLOGY"
       ]
     },
     "public.demand_priority": {
       "name": "demand_priority",
       "schema": "public",
       "values": [
-        "low",
-        "medium",
-        "high",
-        "urgent"
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "URGENT"
       ]
     },
     "public.demand_status": {
       "name": "demand_status",
       "schema": "public",
       "values": [
-        "pending",
-        "in_progress",
-        "resolved",
-        "rejected"
+        "PENDING",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "REJECTED"
       ]
     },
     "public.role": {
       "name": "role",
       "schema": "public",
       "values": [
-        "admin",
-        "manager",
-        "clerk",
-        "analyst",
-        "billing"
+        "ADMIN",
+        "MANAGER",
+        "CLERK",
+        "ANALYST",
+        "BILLING"
       ]
     },
     "public.token_type": {
       "name": "token_type",
       "schema": "public",
       "values": [
-        "password_recover",
-        "email_verification"
+        "PASSWORD_RECOVER",
+        "EMAIL_VERIFICATION"
       ]
     }
   },

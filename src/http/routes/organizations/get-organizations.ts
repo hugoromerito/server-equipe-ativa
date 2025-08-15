@@ -4,14 +4,15 @@ import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { roleZodEnum } from '../../../db/schema/enums.ts'
 import { members, organizations } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 
 export const getOrganizationsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['organizations'],
+        tags: ['Organizations'],
         summary: 'Get organization where user is a member',
         security: [{ bearerAuth: [] }],
         response: {

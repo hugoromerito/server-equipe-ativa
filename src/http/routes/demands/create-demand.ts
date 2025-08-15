@@ -13,7 +13,7 @@ import {
   units,
   users,
 } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { classifyDemandAi } from '../../utils/classify-demand-ai.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
@@ -23,8 +23,9 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/units/:unitSlug/applicants/:applicantSlug/demands',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['demands'],
+        tags: ['Demands'],
         summary: 'Cria uma nova demanda para uma unidade',
         security: [{ bearerAuth: [] }],
         body: z.object({

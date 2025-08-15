@@ -3,7 +3,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { members, units } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { createSlug } from '../../utils/create-slug.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
@@ -11,8 +11,9 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/units',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['units'],
+        tags: ['Units'],
         summary: 'Create a new unit from organization.',
         security: [{ bearerAuth: [] }],
         body: z.object({

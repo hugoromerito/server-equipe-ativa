@@ -3,14 +3,15 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { members, organizations, units } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 
 export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations/:organizationsSlug/units',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['units'],
+        tags: ['Units'],
         summary: 'Get units where user is owner or member',
         security: [{ bearerAuth: [] }],
         params: z.object({

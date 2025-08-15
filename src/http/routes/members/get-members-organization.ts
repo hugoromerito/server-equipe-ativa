@@ -3,7 +3,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { members, roleZodEnum, users } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
 
@@ -23,6 +23,7 @@ export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations/:slug/members',
     {
+      preHandler: [authPreHandler],
       schema: {
         tags: ['Members'],
         summary: 'Get all organization members',

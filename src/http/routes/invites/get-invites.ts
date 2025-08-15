@@ -9,15 +9,16 @@ import {
   units,
   users,
 } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/invites',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['invites'],
+        tags: ['Invites'],
         summary: 'Get all organization invites',
         security: [{ bearerAuth: [] }],
         response: {

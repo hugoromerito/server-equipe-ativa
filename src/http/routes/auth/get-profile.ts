@@ -3,14 +3,15 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { users } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 
 export const getProfileRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/profile',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['auth'],
+        tags: ['Auth'],
         summary: 'Get profile',
         security: [
           {

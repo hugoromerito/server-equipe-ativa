@@ -10,7 +10,7 @@ export const requestPasswordRecoverRoute: FastifyPluginCallbackZod = (app) => {
     '/password/recover',
     {
       schema: {
-        tags: ['auth'],
+        tags: ['Auth'],
         summary: 'Request password recover.',
         body: z.object({
           email: z.email(),

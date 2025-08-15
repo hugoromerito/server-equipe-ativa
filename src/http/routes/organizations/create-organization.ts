@@ -5,15 +5,16 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { members, organizations } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { createSlug } from '../../utils/create-slug.ts'
 
 export const createOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['organizations'],
+        tags: ['Organizations'],
         summary: 'Create a new organization',
         security: [{ bearerAuth: [] }],
         body: z.object({

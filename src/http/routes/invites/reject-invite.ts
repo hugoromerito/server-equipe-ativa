@@ -4,13 +4,14 @@ import { z } from 'zod/v4'
 
 import { db } from '../../../db/connection.ts'
 import { invites, users } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const rejectInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/invites/:inviteId/reject',
     {
+      preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
         summary: 'Reject an invite',

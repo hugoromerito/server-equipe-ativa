@@ -4,15 +4,16 @@ import { isCPF } from 'validation-br'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { applicants, organizations } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const getCheckApplicantRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/applicant',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['applicants'],
+        tags: ['Applicants'],
         summary: 'Get applicant by CPF within an organization',
         security: [{ bearerAuth: [] }],
         params: z.object({

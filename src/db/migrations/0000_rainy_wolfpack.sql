@@ -1,9 +1,9 @@
-CREATE TYPE "public"."account_provider" AS ENUM('facebook', 'github', 'google');--> statement-breakpoint
-CREATE TYPE "public"."demand_category" AS ENUM('infrastructure', 'health', 'education', 'social_assistance', 'public_safety', 'transportation', 'employment', 'culture', 'environment', 'human_rights', 'technology');--> statement-breakpoint
-CREATE TYPE "public"."demand_priority" AS ENUM('low', 'medium', 'high', 'urgent');--> statement-breakpoint
-CREATE TYPE "public"."demand_status" AS ENUM('pending', 'in_progress', 'resolved', 'rejected');--> statement-breakpoint
-CREATE TYPE "public"."role" AS ENUM('admin', 'manager', 'clerk', 'analyst', 'billing');--> statement-breakpoint
-CREATE TYPE "public"."token_type" AS ENUM('password_recover', 'email_verification');--> statement-breakpoint
+CREATE TYPE "public"."account_provider" AS ENUM('FACEBOOK', 'GITHUB', 'GOOGLE');--> statement-breakpoint
+CREATE TYPE "public"."demand_category" AS ENUM('INFRASTRUCTURE', 'HEALTH', 'EDUCATION', 'SOCIAL_ASSISTANCE', 'PUBLIC_SAFETY', 'TRANSPORTATION', 'EMPLOYMENT', 'CULTURE', 'ENVIRONMENT', 'HUMAN_RIGHTS', 'TECHNOLOGY');--> statement-breakpoint
+CREATE TYPE "public"."demand_priority" AS ENUM('LOW', 'MEDIUM', 'HIGH', 'URGENT');--> statement-breakpoint
+CREATE TYPE "public"."demand_status" AS ENUM('PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED');--> statement-breakpoint
+CREATE TYPE "public"."role" AS ENUM('ADMIN', 'MANAGER', 'CLERK', 'ANALYST', 'BILLING');--> statement-breakpoint
+CREATE TYPE "public"."token_type" AS ENUM('PASSWORD_RECOVER', 'EMAIL_VERIFICATION');--> statement-breakpoint
 CREATE TABLE "accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"provider" "account_provider" NOT NULL,
@@ -12,12 +12,38 @@ CREATE TABLE "accounts" (
 	CONSTRAINT "accounts_provider_account_id_unique" UNIQUE("provider_account_id")
 );
 --> statement-breakpoint
+CREATE TABLE "tokens" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"type" "token_type" NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	"user_id" uuid NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "users" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text,
+	"email" text NOT NULL,
+	"password_hash" text,
+	"avatar_url" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp,
+	"last_seen" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "users_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "billings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp
+);
+--> statement-breakpoint
 CREATE TABLE "applicants" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"phone" text NOT NULL,
 	"birthdate" date NOT NULL,
 	"cpf" text NOT NULL,
+	"ticket" text,
 	"mother" text,
 	"father" text,
 	"attachment" text,
@@ -28,17 +54,11 @@ CREATE TABLE "applicants" (
 	"organization_id" uuid NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "billings" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp
-);
---> statement-breakpoint
 CREATE TABLE "demands" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text NOT NULL,
 	"description" text NOT NULL,
-	"status" "demand_status" DEFAULT 'pending' NOT NULL,
+	"status" "demand_status" DEFAULT 'PENDING' NOT NULL,
 	"priority" "demand_priority" NOT NULL,
 	"category" "demand_category" NOT NULL,
 	"zip_code" text,
@@ -71,7 +91,8 @@ CREATE TABLE "invites" (
 --> statement-breakpoint
 CREATE TABLE "members" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"role" "role" DEFAULT 'clerk' NOT NULL,
+	"organization_role" "role" DEFAULT 'CLERK' NOT NULL,
+	"unit_role" "role",
 	"user_id" uuid NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"unit_id" uuid
@@ -91,13 +112,6 @@ CREATE TABLE "organizations" (
 	CONSTRAINT "organizations_domain_unique" UNIQUE("domain")
 );
 --> statement-breakpoint
-CREATE TABLE "tokens" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"type" "token_type" NOT NULL,
-	"created_at" timestamp DEFAULT now(),
-	"user_id" uuid NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "units" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -112,18 +126,8 @@ CREATE TABLE "units" (
 	CONSTRAINT "units_domain_unique" UNIQUE("domain")
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" text,
-	"email" text NOT NULL,
-	"password_hash" text,
-	"avatar_url" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp,
-	CONSTRAINT "users_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tokens" ADD CONSTRAINT "tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "applicants" ADD CONSTRAINT "applicants_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "demands" ADD CONSTRAINT "demands_applicant_id_applicants_id_fk" FOREIGN KEY ("applicant_id") REFERENCES "public"."applicants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "demands" ADD CONSTRAINT "demands_unit_id_units_id_fk" FOREIGN KEY ("unit_id") REFERENCES "public"."units"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -135,7 +139,6 @@ ALTER TABLE "invites" ADD CONSTRAINT "invites_unit_id_units_id_fk" FOREIGN KEY (
 ALTER TABLE "members" ADD CONSTRAINT "members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_unit_id_units_id_fk" FOREIGN KEY ("unit_id") REFERENCES "public"."units"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tokens" ADD CONSTRAINT "tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "units" ADD CONSTRAINT "units_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "units" ADD CONSTRAINT "units_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "provider_user_id" ON "accounts" USING btree ("provider","user_id");--> statement-breakpoint

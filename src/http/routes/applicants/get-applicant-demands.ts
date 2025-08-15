@@ -3,15 +3,16 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { applicants, demands, organizations } from '../../../db/schema/index.ts'
-import { auth } from '../../middlewares/auth.ts'
+import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
     '/organizations/:organizationSlug/applicant/:applicantSlug/demands',
     {
+      preHandler: [authPreHandler],
       schema: {
-        tags: ['applicants'],
+        tags: ['Applicants'],
         summary: 'Get demands of applicant.',
         security: [{ bearerAuth: [] }],
         params: z.object({
