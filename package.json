@@ -9,7 +9,7 @@
     "db:seed": "node --env-file .env --experimental-strip-types --no-warnings src/db/seed.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "Hugo Queiroz",
   "license": "ISC",
   "description": "",
   "devDependencies": {
