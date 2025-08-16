@@ -43,6 +43,7 @@ import { createUnitRoute } from './http/routes/units/create_unit.ts'
 import { getUnitsRoute } from './http/routes/units/get-units.ts'
 import { createUserRoute } from './http/routes/users/create-user.ts'
 import { getUsersRoute } from './http/routes/users/get-users.ts'
+import { getApplicantsRoute } from './http/routes/applicants/get-applicants.ts'
 
 const app = fastify().withTypeProvider<ZodTypeProvider>()
 
@@ -118,6 +119,7 @@ app.get('/health', () => {
 app.register(createApplicantRoute)
 app.register(getApplicantDemandsRoute)
 app.register(getApplicantRoute)
+app.register(getApplicantsRoute)
 app.register(getCheckApplicantRoute)
 
 // Auth
