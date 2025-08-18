@@ -1,6 +1,6 @@
 import { relations } from 'drizzle-orm'
-import { accounts, tokens, users } from './auth.ts'
 import { attachments } from './attachments.ts'
+import { accounts, tokens, users } from './auth.ts'
 import { applicants, demands } from './demands.ts'
 import { invites, members, organizations, units } from './organization.ts'
 

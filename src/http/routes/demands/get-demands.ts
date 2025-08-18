@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, ilike, or, type SQL, sql } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'

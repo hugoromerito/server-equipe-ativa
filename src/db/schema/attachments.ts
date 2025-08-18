@@ -1,16 +1,15 @@
 import {
+  boolean,
+  integer,
   pgTable,
   text,
-  integer,
   timestamp,
   uuid,
-  boolean,
 } from 'drizzle-orm/pg-core'
-import { attachmentTypeEnum } from './enums.ts'
-import { organizations } from './organization.ts'
 import { users } from './auth.ts'
 import { applicants, demands } from './demands.ts'
-
+import { attachmentTypeEnum } from './enums.ts'
+import { organizations } from './organization.ts'
 
 export const attachments = pgTable('attachments', {
   id: uuid().primaryKey().defaultRandom(),

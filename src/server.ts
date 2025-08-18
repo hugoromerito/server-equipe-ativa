@@ -1,5 +1,6 @@
 import { fastifyCors } from '@fastify/cors'
 import fastifyJwt from '@fastify/jwt'
+import fastifyMultipart from '@fastify/multipart'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { eq } from 'drizzle-orm'
@@ -19,6 +20,7 @@ import { getApplicantRoute } from './http/routes/applicants/get-applicant.ts'
 import { getApplicantDemandsRoute } from './http/routes/applicants/get-applicant-demands.ts'
 import { getApplicantsRoute } from './http/routes/applicants/get-applicants.ts'
 import { getCheckApplicantRoute } from './http/routes/applicants/get-check-applicant.ts'
+import { uploadUserAvatarRoute } from './http/routes/attachments/upload-user-avatar.ts'
 import { authenticateWithPasswordRoute } from './http/routes/auth/authenticate-with-password.ts'
 import { getProfileRoute } from './http/routes/auth/get-profile.ts'
 import { requestPasswordRecoverRoute } from './http/routes/auth/request-password-recover.ts'
@@ -41,12 +43,10 @@ import { getOrganizationRoute } from './http/routes/organizations/get-organizati
 import { getOrganizationsRoute } from './http/routes/organizations/get-organizations.ts'
 import { shutdownOrganizationRoute } from './http/routes/organizations/shutdown-organization.ts'
 import { updateOrganizationRoute } from './http/routes/organizations/update-organization.ts'
-import { createUnitRoute } from './http/routes/units/create_unit.ts'
+import { createUnitRoute } from './http/routes/units/create-unit.ts'
 import { getUnitsRoute } from './http/routes/units/get-units.ts'
 import { createUserRoute } from './http/routes/users/create-user.ts'
 import { getUsersRoute } from './http/routes/users/get-users.ts'
-import { uploadUserAvatarRoute } from './http/routes/attachments/upload-user-avatar.ts'
-import fastifyMultipart from '@fastify/multipart'
 
 const app = fastify().withTypeProvider<ZodTypeProvider>()
 app.register(fastifyMultipart)

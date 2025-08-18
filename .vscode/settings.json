@@ -4,10 +4,7 @@
   "editor.lineHeight": 1.8,
   "javascript.suggest.autoImports": true,
   "javascript.updateImportsOnFileMove.enabled": "always",
-  "editor.rulers": [
-    80,
-    120
-  ],
+  "editor.rulers": [80, 120],
   "editor.fontFamily": "'Fira Code', monospace",
   "editor.fontLigatures": true,
   "terminal.integrated.fontFamily": "'Fira Code', monospace",
@@ -36,11 +33,7 @@
     "*.ndjson": "brackets-orange"
   },
   "tailwindCSS.experimental.classRegex": [
-    [
-      "tv\\(([^)]*)\\)",
-      "cva\\(([^)]*)\\)",
-      "[\"']([^\"']*).*?[\"']"
-    ],
+    ["tv\\(([^)]*)\\)", "cva\\(([^)]*)\\)", "[\"']([^\"']*).*?[\"']"],
     "class:\\s*?[\"']([^\"']*).*?,",
     "tw\\('([^']*)'\\)"
   ],
@@ -221,10 +214,7 @@
   },
   "liveServer.settings.donotShowInfoMsg": true,
   "editor.multiCursorLimit": 50000,
-  "cSpell.words": [
-    "openai",
-    "treeify"
-  ],
+  "cSpell.words": ["openai", "treeify"],
   "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][css][graphql]": {
     "editor.defaultFormatter": "biomejs.biome"
   },

@@ -1,7 +1,7 @@
-import type { FastifyRequest } from 'fastify'
 import type { MultipartFile } from '@fastify/multipart'
-import { BadRequestError } from '../routes/_errors/bad-request-error.ts'
+import type { FastifyRequest } from 'fastify'
 import type { AttachmentType } from '../../services/storage.ts'
+import { BadRequestError } from '../routes/_errors/bad-request-error.ts'
 
 export interface FileUpload {
   buffer: Buffer
