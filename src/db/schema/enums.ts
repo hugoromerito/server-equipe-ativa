@@ -32,6 +32,17 @@ const DEMAND_CATEGORY_VALUES = [
 
 const DEMAND_PRIORITY_VALUES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const
 
+const ATTACHMENT_TYPE_VALUES = [
+  'AVATAR',
+  'DOCUMENT',
+  'IDENTITY',
+  'ADDRESS',
+  'INCOME',
+  'MEDICAL',
+  'LEGAL',
+  'OTHER',
+] as const
+
 // Enums para Drizzle (Database)
 export const roleEnum = pgEnum('role', ROLE_VALUES)
 export const accountProviderEnum = pgEnum(
@@ -47,6 +58,11 @@ export const demandCategoryEnum = pgEnum(
 export const demandPriorityEnum = pgEnum(
   'demand_priority',
   DEMAND_PRIORITY_VALUES
+)
+
+export const attachmentTypeEnum = pgEnum(
+  'attachment_type',
+  ATTACHMENT_TYPE_VALUES
 )
 
 // Enums para Zod (Validation)

@@ -5,6 +5,7 @@ import swaggerUi from '@fastify/swagger-ui'
 import { eq } from 'drizzle-orm'
 import { fastify } from 'fastify'
 import {
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -16,6 +17,7 @@ import { auth } from './http/middlewares/auth.ts'
 import { createApplicantRoute } from './http/routes/applicants/create-applicant.ts'
 import { getApplicantRoute } from './http/routes/applicants/get-applicant.ts'
 import { getApplicantDemandsRoute } from './http/routes/applicants/get-applicant-demands.ts'
+import { getApplicantsRoute } from './http/routes/applicants/get-applicants.ts'
 import { getCheckApplicantRoute } from './http/routes/applicants/get-check-applicant.ts'
 import { authenticateWithPasswordRoute } from './http/routes/auth/authenticate-with-password.ts'
 import { getProfileRoute } from './http/routes/auth/get-profile.ts'
@@ -43,16 +45,86 @@ import { createUnitRoute } from './http/routes/units/create_unit.ts'
 import { getUnitsRoute } from './http/routes/units/get-units.ts'
 import { createUserRoute } from './http/routes/users/create-user.ts'
 import { getUsersRoute } from './http/routes/users/get-users.ts'
-import { getApplicantsRoute } from './http/routes/applicants/get-applicants.ts'
+import { uploadUserAvatarRoute } from './http/routes/attachments/upload-user-avatar.ts'
+import fastifyMultipart from '@fastify/multipart'
 
 const app = fastify().withTypeProvider<ZodTypeProvider>()
+app.register(fastifyMultipart)
+// app.register(fastifyCors, {
+//   origin: 'http://localhost:5173', //URL do Frontend
+// })
 
 app.register(fastifyCors, {
-  origin: 'http://localhost:5173', //URL do Frontend
+  origin: (origin, callback) => {
+    const hostname = new URL(origin || 'http://localhost:3333').hostname
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || !origin) {
+      callback(null, true)
+      return
+    }
+    callback(new Error('Not allowed by CORS'), false)
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 })
 
 app.register(fastifyJwt, {
   secret: env.JWT_SECRET,
+})
+
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
+
+app.register(swagger, {
+  openapi: {
+    info: {
+      title: 'Equipe Ativa API',
+      description: 'Documentação da API Equipe Ativa',
+      version: '1.0.0',
+    },
+    servers: [
+      {
+        url: `http://localhost:${env.PORT}`,
+        description: 'Servidor de desenvolvimento',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT para autenticação',
+        },
+      },
+    },
+    tags: [
+      { name: 'Auth', description: 'Operações de autenticação' },
+      { name: 'Organizations', description: 'Gerenciamento de organizações' },
+      { name: 'Units', description: 'Gerenciamento de unidades' },
+      { name: 'Users', description: 'Gerenciamento de usuários' },
+      { name: 'Members', description: 'Gerenciamento de membros' },
+      { name: 'Invites', description: 'Gerenciamento de convites' },
+      { name: 'Applicants', description: 'Gerenciamento de solicitantes' },
+      { name: 'Demands', description: 'Gerenciamento de demandas' },
+    ],
+  },
+  transform: jsonSchemaTransform,
+})
+
+app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false,
+    defaultModelsExpandDepth: 2,
+    defaultModelExpandDepth: 2,
+  },
+  staticCSP: true,
+  transformSpecification: (swaggerObject, _request, _reply) => {
+    return swaggerObject
+  },
+  transformSpecificationClone: true,
 })
 
 // ✅ Hook para atualizar o last_seen
@@ -74,46 +146,6 @@ app.addHook('onRequest', async (request, _reply) => {
 })
 
 app.register(auth)
-
-app.setSerializerCompiler(serializerCompiler)
-app.setValidatorCompiler(validatorCompiler)
-
-app.register(swagger, {
-  openapi: {
-    info: {
-      title: 'Equipe Ativa API',
-      description: 'Documentação da API Equipe Ativa',
-      version: '1.0.0',
-    },
-    servers: [{ url: `http://localhost:${env.PORT}` }],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-    },
-  },
-})
-
-app.register(swaggerUi, {
-  routePrefix: '/docs',
-  uiConfig: {
-    docExpansion: 'list',
-    deepLinking: false,
-  },
-  staticCSP: true,
-  transformSpecification: (swaggerObject, _request, _reply) => {
-    return swaggerObject
-  },
-  transformSpecificationClone: true,
-})
-
-app.get('/health', () => {
-  return 'OK'
-})
 
 // Applicants
 app.register(createApplicantRoute)
@@ -161,7 +193,6 @@ app.register(getUnitsRoute)
 // Users
 app.register(getUsersRoute)
 app.register(createUserRoute)
-
-
+app.register(uploadUserAvatarRoute)
 
 app.listen({ port: env.PORT })

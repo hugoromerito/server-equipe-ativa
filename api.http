@@ -1,194 +1,557 @@
 @baseUrl = https://animated-spoon-4rg975jr4xxcj7pw-3333.app.github.dev
-@organizationSlug = ubs
-@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYTQ1NjY0MC0xMmY3LTQ2ZGItYjk0ZC1mNjZlZGQ0N2NhNDUiLCJpYXQiOjE3NTUyODY3NTMsImV4cCI6MTc1NTg5MTU1M30.A6QbMso08eaqppLUxwWIcuSsGFmcRzR8jgrG8BMYFdg
+@organizationSlug = ubs-central
+@unitSlug = policlinica-barro-vermelho
+@orgId = 2cf09a73-1412-4e58-a272-0cb53251291f
+@unitId = 9ad80801-a849-40d7-91b1-7658b0acf4b6
+@applicantId = d53b4d5f-57ca-4b9a-b911-2ac3721a2c37
+@demandId = 123e4567-e89b-12d3-a456-426614174000
+@inviteId = 123e4567-e89b-12d3-a456-426614174000
+@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiZTgyMjExZC0wZWI4LTQzYzYtODg0OS03M2RiMmExNGE4MzEiLCJpYXQiOjE3NTU0NDgyNDgsImV4cCI6MTc1NjA1MzA0OH0.F4VI2yND6dmoLzM8LMdQPOqoRMesqAAOlKa4vxVuYhw
 
+###############################################################################
+# 🔐 AUTENTICAÇÃO
+###############################################################################
 
-###
-
-# @name cria_novo_usuário
+# @name criar_usuario
 POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "name": "Romerito",
-  "email": "hugo1@gmail.com",
-  "password": "romerito"
+  "name": "Romerito Silva",
+  "email": "romerito@example.com",
+  "password": "senha123"
 }
 
 ###
 
-# @name retorna_todos_usuários
+# @name listar_usuarios
 GET {{baseUrl}}/users
 Authorization: {{tokenAuth}}
 
 ###
 
-# @name autenticação_com_email_e_senha
+# @name autenticar_usuario
 POST {{baseUrl}}/sessions/password
 Content-Type: application/json
 
 {
-  "email": "hugo1@gmail.com",
-  "password": "romerito"
+  "email": "romerito@example.com",
+  "password": "senha123"
 }
 
 ###
 
-# @name cria_token_para_alterar_senha
+# @name recuperar_senha
 POST {{baseUrl}}/password/recover
 Content-Type: application/json
 
 {
-  "email": "hugo2@gmail.com"
+  "email": "romerito@example.com"
 }
 
 ###
 
-# @name altera_senha
+# @name resetar_senha
 POST {{baseUrl}}/password/reset
 Content-Type: application/json
- 
+
 {
   "code": "f890da11-565e-4f42-86b2-4dd51fcc17bf",
-  "password": "romerito"
+  "password": "nova_senha123"
 }
-
 
 ###
 
-# @name retorna_informações_do_usuário_logado
+# @name perfil_usuario
 GET {{baseUrl}}/profile
 Authorization: {{tokenAuth}}
 
+###############################################################################
+# 🏢 ORGANIZAÇÕES
+###############################################################################
 
-###
-
-# @name cria_organização
+# @name criar_organizacao
 POST {{baseUrl}}/organizations
 Authorization: {{tokenAuth}}
 Content-Type: application/json
- 
+
 {
-  "name": "UBS"
+  "name": "UBS Central",
+  "domain": "ubs-central"
 }
 
-
 ###
 
-# @name cria_unidade_em_uma_organização
-POST {{baseUrl}}/organizations/{{organizationSlug}}/units
-Authorization: {{tokenAuth}}
-Content-Type: application/json
- 
-{
-  "name": "Policlínica Barro Vermelho",
-  "description": "Atendimento clinico",
-  "location": "Santa Maria"
-}
-
-
-###
-
-# @name atualiza_organização
-PUT  {{baseUrl}}/organizations/{{organizationSlug}}
-Authorization: {{tokenAuth}}
-Content-Type: application/json
- 
-{
-  "name": "usbsjs",
-  "domain": "asafsad"
-}
-
-
-
-###
-
-# @name retorna_unidades_de_uma_organização
-GET {{baseUrl}}/organizations/{{organizationSlug}}/units
-Authorization: {{tokenAuth}}
-
-###
-
-# @name retorna_informações_da_organização
-GET {{baseUrl}}/organizations/{{organizationSlug}}
-Authorization: {{tokenAuth}}
-
-###
-
-# @name retorna_organizações_do_usuário
+# @name listar_organizacoes
 GET {{baseUrl}}/organizations
 Authorization: {{tokenAuth}}
 
 ###
 
-# @name retorna_informações_de_membro_do_usuário
-GET {{baseUrl}}/organizations/{{organizationSlug}}/membership
+# @name detalhes_organizacao
+GET {{baseUrl}}/organizations/{{organizationSlug}}
 Authorization: {{tokenAuth}}
 
 ###
 
-# @name retorna_informações_de_membro_do_usuário
+# @name atualizar_organizacao
+PUT {{baseUrl}}/organizations/{{organizationSlug}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "UBS Central Atualizada",
+  "domain": "ubs-central-nova"
+}
+
+###
+
+# @name deletar_organizacao
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name verificar_membership
+GET {{baseUrl}}/organizations/{{organizationSlug}}/membership
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 🏢 UNIDADES
+###############################################################################
+
+# @name criar_unidade
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Policlínica Barro Vermelho",
+  "description": "Atendimento clínico especializado",
+  "location": "Santa Maria - RS"
+}
+
+###
+
+# @name listar_unidades
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units
+Authorization: {{tokenAuth}}
+
+###
+
+# @name detalhes_unidade
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name atualizar_unidade
+PUT {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Policlínica Barro Vermelho - Atualizada",
+  "description": "Atendimento clínico e emergencial",
+  "location": "Santa Maria - RS - Centro"
+}
+
+###
+
+# @name deletar_unidade
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 👥 MEMBROS
+###############################################################################
+
+# @name listar_membros_organizacao
 GET {{baseUrl}}/organizations/{{organizationSlug}}/members
 Authorization: {{tokenAuth}}
 
 ###
 
-# @name retorna_informações_de_membro_do_usuário
-GET {{baseUrl}}/organizations/{{organizationSlug}}/units/policlinica-barro-vermelho/members
+# @name listar_membros_unidade
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members
 Authorization: {{tokenAuth}}
 
 ###
 
-# @name cria_convite
-POST {{baseUrl}}/organizations/{{organizationSlug}}/invites
+# @name atualizar_role_membro
+PUT {{baseUrl}}/organizations/{{organizationSlug}}/members/{{applicantId}}
 Authorization: {{tokenAuth}}
 Content-Type: application/json
- 
+
 {
-  "email": "hugo2@gmail.com",
-  "role": "CLERK",
-  "unitSlug": "policlinica-barro-vermelho"
+  "role": "MANAGER"
 }
 
 ###
 
-# @name retorna_informações_de_membro_do_usuário
+# @name remover_membro
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/members/{{applicantId}}
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📧 CONVITES
+###############################################################################
+
+# @name criar_convite
+POST {{baseUrl}}/organizations/{{organizationSlug}}/invites
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "email": "novo.membro@example.com",
+  "role": "CLERK",
+  "unitSlug": "{{unitSlug}}"
+}
+
+###
+
+# @name listar_convites
 GET {{baseUrl}}/invites
 Authorization: {{tokenAuth}}
 
-
 ###
 
-# @name deleta_organização
-DELETE  {{baseUrl}}/organizations/{{organizationSlug}}
+# @name detalhes_convite
+GET {{baseUrl}}/invites/{{inviteId}}
 Authorization: {{tokenAuth}}
 
 ###
 
+# @name aceitar_convite
+POST {{baseUrl}}/invites/{{inviteId}}/accept
+Authorization: {{tokenAuth}}
 
-# @name cria_convite
+###
+
+# @name rejeitar_convite
+POST {{baseUrl}}/invites/{{inviteId}}/reject
+Authorization: {{tokenAuth}}
+
+###
+
+# @name convites_pendentes
+GET {{baseUrl}}/pending-invites
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 👤 SOLICITANTES (APPLICANTS)
+###############################################################################
+
+# @name criar_solicitante
 POST {{baseUrl}}/organizations/{{organizationSlug}}/applicants
 Authorization: {{tokenAuth}}
 Content-Type: application/json
- 
+
 {
   "name": "Hugo de Souza De Queiroz",
   "birthdate": "2000-11-21",
   "cpf": "20474669700",
-  "phone": "1234567890",
-  "mother": "as",
-  "father": "as"
+  "phone": "11987654321",
+  "mother": "Maria de Souza",
+  "father": "João de Queiroz",
+  "address": "Rua das Flores, 123",
+  "neighborhood": "Centro",
+  "city": "Santa Maria",
+  "state": "RS",
+  "zipCode": "97010-000"
 }
 
 ###
 
-GET {{baseUrl}}/organizations/ubs/units/policlinica-barro-vermelho/demands?page=1&limit=20&sort_by=created_at&sort_order=desc
-Authorization: {{tokenAuth}}
-
-
-###
-
-GET http://localhost:3333/organizations/ubs/units/policlinica-barro-vermelho/demands
+# @name listar_solicitantes
+GET {{baseUrl}}/organizations/{{organizationSlug}}/applicants?page=1&limit=20&search=Hugo
 Authorization: {{tokenAuth}}
 
 ###
+
+# @name detalhes_solicitante
+GET {{baseUrl}}/organizations/{{organizationSlug}}/applicant/{{applicantId}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name verificar_cpf_solicitante
+POST {{baseUrl}}/organizations/{{organizationSlug}}/applicant
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "cpf": "20474669700"
+}
+
+###
+
+# @name atualizar_solicitante
+PUT {{baseUrl}}/organizations/{{organizationSlug}}/applicant/{{applicantId}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Hugo de Souza De Queiroz - Atualizado",
+  "phone": "11999888777",
+  "address": "Rua Nova, 456"
+}
+
+###
+
+# @name deletar_solicitante
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/applicant/{{applicantId}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name listar_demandas_solicitante
+GET {{baseUrl}}/organizations/{{organizationSlug}}/applicant/{{applicantId}}/demands
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📋 DEMANDAS
+###############################################################################
+
+# @name criar_demanda
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/applicants/{{applicantId}}/demands
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "title": "Consulta médica cardiologista",
+  "description": "Paciente necessita consulta com cardiologista para acompanhamento",
+  "category": "HEALTH",
+  "priority": "HIGH",
+  "urgency": "URGENT",
+  "attachments": []
+}
+
+###
+
+# @name listar_demandas
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands?page=1&limit=20&sort_by=created_at&sort_order=desc&status=PENDING&category=HEALTH&priority=HIGH
+Authorization: {{tokenAuth}}
+
+###
+
+# @name detalhes_demanda
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands/{{demandId}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name atualizar_status_demanda
+PUT {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands/{{demandId}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "status": "IN_PROGRESS",
+  "notes": "Demanda encaminhada para o setor competente"
+}
+
+###
+
+# @name deletar_demanda
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands/{{demandId}}
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📊 RELATÓRIOS E DASHBOARD
+###############################################################################
+
+# @name dashboard_organizacao
+GET {{baseUrl}}/organizations/{{organizationSlug}}/dashboard
+Authorization: {{tokenAuth}}
+
+###
+
+# @name dashboard_unidade
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/dashboard
+Authorization: {{tokenAuth}}
+
+###
+
+# @name relatorio_demandas
+GET {{baseUrl}}/organizations/{{organizationSlug}}/reports/demands?start_date=2025-01-01&end_date=2025-12-31&unit={{unitSlug}}&category=HEALTH
+Authorization: {{tokenAuth}}
+
+###
+
+# @name relatorio_solicitantes
+GET {{baseUrl}}/organizations/{{organizationSlug}}/reports/applicants?start_date=2025-01-01&end_date=2025-12-31
+Authorization: {{tokenAuth}}
+
+###
+
+# @name analytics_organizacao
+GET {{baseUrl}}/organizations/{{organizationSlug}}/analytics
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 🔍 BUSCA
+###############################################################################
+
+# @name busca_global
+GET {{baseUrl}}/search?q=Hugo&type=applicants&page=1&limit=10
+Authorization: {{tokenAuth}}
+
+###
+
+# @name busca_organizacao
+GET {{baseUrl}}/organizations/{{organizationSlug}}/search?q=consulta&type=demands
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📁 ANEXOS
+###############################################################################
+
+# @name upload_anexo
+POST {{baseUrl}}/organizations/{{organizationSlug}}/attachments
+Authorization: {{tokenAuth}}
+Content-Type: multipart/form-data
+
+{
+  "file": "@/path/to/file.pdf",
+  "description": "Exame médico"
+}
+
+###
+
+# @name upload_avatar_usuario
+POST {{baseUrl}}/organizations/{{organizationSlug}}/users/be82211d-0eb8-43c6-8849-73db2a14a831/avatar
+Authorization: {{tokenAuth}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="avatar"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-avatar.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+# @name download_anexo
+GET {{baseUrl}}/organizations/{{organizationSlug}}/attachments/{{demandId}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name deletar_anexo
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/attachments/{{demandId}}
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 🔔 NOTIFICAÇÕES
+###############################################################################
+
+# @name listar_notificacoes
+GET {{baseUrl}}/notifications?page=1&limit=20&read=false
+Authorization: {{tokenAuth}}
+
+###
+
+# @name marcar_notificacao_lida
+PUT {{baseUrl}}/notifications/{{demandId}}/read
+Authorization: {{tokenAuth}}
+
+###
+
+# @name marcar_todas_lidas
+POST {{baseUrl}}/notifications/mark-all-read
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 💰 BILLING (FUTURO)
+###############################################################################
+
+# @name dados_billing
+GET {{baseUrl}}/organizations/{{organizationSlug}}/billing
+Authorization: {{tokenAuth}}
+
+###
+
+# @name criar_assinatura
+POST {{baseUrl}}/organizations/{{organizationSlug}}/billing/subscription
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "plan": "PRO",
+  "payment_method": "CREDIT_CARD"
+}
+
+###
+
+# @name listar_faturas
+GET {{baseUrl}}/organizations/{{organizationSlug}}/billing/invoices
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📱 MOBILE/PWA
+###############################################################################
+
+# @name dashboard_mobile
+GET {{baseUrl}}/mobile/dashboard
+Authorization: {{tokenAuth}}
+
+###
+
+# @name criacao_rapida_demanda
+POST {{baseUrl}}/mobile/demands/quick-create
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "applicantId": "{{applicantId}}",
+  "title": "Demanda urgente",
+  "category": "HEALTH",
+  "priority": "HIGH"
+}
+
+###
+
+# @name sincronizacao_offline
+GET {{baseUrl}}/mobile/offline-sync
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 🏷️ CATEGORIAS CUSTOMIZADAS
+###############################################################################
+
+# @name listar_categorias
+GET {{baseUrl}}/organizations/{{organizationSlug}}/categories
+Authorization: {{tokenAuth}}
+
+###
+
+# @name criar_categoria
+POST {{baseUrl}}/organizations/{{organizationSlug}}/categories
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Categoria Personalizada",
+  "description": "Descrição da categoria",
+  "color": "#FF5733"
+}
+
+###
+
+# @name atualizar_categoria
+PUT {{baseUrl}}/organizations/{{organizationSlug}}/categories/{{demandId}}
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Categoria Atualizada",
+  "color": "#33FF57"
+}
+
+###
+
+# @name deletar_categoria
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/categories/{{demandId}}
+Authorization: {{tokenAuth}}

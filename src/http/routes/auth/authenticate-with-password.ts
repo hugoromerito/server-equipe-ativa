@@ -13,14 +13,18 @@ export const authenticateWithPasswordRoute: FastifyPluginCallbackZod = (
     {
       schema: {
         tags: ['Auth'],
-        summary: 'Authenticate with e-mail & password',
+        summary: 'Autenticar com e-mail e senha',
+        description:
+          'Realiza autenticação do usuário com e-mail e senha, retornando um token JWT',
         body: z.object({
-          email: z.email(),
-          password: z.string(),
+          email: z.email('E-mail deve ter um formato válido.'),
+          password: z
+            .string()
+            .min(8, 'Senha deve ter pelo menos 8 caracteres.'),
         }),
         response: {
           201: z.object({
-            token: z.string(),
+            token: z.string().describe('Token JWT para autenticação.'),
           }),
         },
       },
