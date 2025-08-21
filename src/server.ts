@@ -15,38 +15,59 @@ import { env } from './config/env.ts'
 import { db } from './db/connection.ts'
 import { users } from './db/schema/auth.ts'
 import { auth } from './http/middlewares/auth.ts'
-import { createApplicantRoute } from './http/routes/applicants/create-applicant.ts'
-import { getApplicantRoute } from './http/routes/applicants/get-applicant.ts'
-import { getApplicantDemandsRoute } from './http/routes/applicants/get-applicant-demands.ts'
-import { getApplicantsRoute } from './http/routes/applicants/get-applicants.ts'
-import { getCheckApplicantRoute } from './http/routes/applicants/get-check-applicant.ts'
-import { uploadUserAvatarRoute } from './http/routes/attachments/upload-user-avatar.ts'
-import { authenticateWithPasswordRoute } from './http/routes/auth/authenticate-with-password.ts'
-import { getProfileRoute } from './http/routes/auth/get-profile.ts'
-import { requestPasswordRecoverRoute } from './http/routes/auth/request-password-recover.ts'
-import { resetPasswordRoute } from './http/routes/auth/reset-password.ts'
-import { createDemandRoute } from './http/routes/demands/create-demand.ts'
-import { getDemandRoute } from './http/routes/demands/get-demand.ts'
-import { getDemandsRoute } from './http/routes/demands/get-demands.ts'
-import { updateDemandRoute } from './http/routes/demands/update-demand.ts'
-import { acceptInviteRoute } from './http/routes/invites/accept-invite.ts'
-import { createInviteRoute } from './http/routes/invites/create-invite.ts'
-import { getInviteRoute } from './http/routes/invites/get-invite.ts'
-import { getInvitesRoute } from './http/routes/invites/get-invites.ts'
-import { getPendingInvitesRoute } from './http/routes/invites/get-pending-invites.ts'
-import { rejectInviteRoute } from './http/routes/invites/reject-invite.ts'
-import { getMembersOrganizationRoute } from './http/routes/members/get-members-organization.ts'
-import { getMembersUnitRoute } from './http/routes/members/get-members-unit.ts'
-import { createOrganizationRoute } from './http/routes/organizations/create-organization.ts'
-import { getMembershipRoute } from './http/routes/organizations/get-membership.ts'
-import { getOrganizationRoute } from './http/routes/organizations/get-organization.ts'
-import { getOrganizationsRoute } from './http/routes/organizations/get-organizations.ts'
-import { shutdownOrganizationRoute } from './http/routes/organizations/shutdown-organization.ts'
-import { updateOrganizationRoute } from './http/routes/organizations/update-organization.ts'
-import { createUnitRoute } from './http/routes/units/create-unit.ts'
-import { getUnitsRoute } from './http/routes/units/get-units.ts'
-import { createUserRoute } from './http/routes/users/create-user.ts'
-import { getUsersRoute } from './http/routes/users/get-users.ts'
+import {
+  createApplicantRoute,
+  getApplicantDemandsRoute,
+  getApplicantRoute,
+  getApplicantsRoute,
+  getCheckApplicantRoute,
+} from './http/routes/applicants/index.ts'
+import {
+  deleteAttachmentRoute,
+  downloadAttachmentRoute,
+  getAttachmentsRoute,
+  uploadApplicantAvatarRoute,
+  uploadApplicantDocumentRoute,
+  uploadDemandDocumentRoute,
+  uploadOrganizationAvatarRoute,
+  uploadOrganizationDocumentRoute,
+  uploadUserAvatarRoute,
+} from './http/routes/attachments/index.ts'
+import {
+  authenticateWithPasswordRoute,
+  getProfileRoute,
+  requestPasswordRecoverRoute,
+  resetPasswordRoute,
+} from './http/routes/auth/index.ts'
+import {
+  createDemandRoute,
+  getDemandRoute,
+  getDemandsRoute,
+  updateDemandRoute,
+} from './http/routes/demands/index.ts'
+import {
+  acceptInviteRoute,
+  createInviteRoute,
+  getInviteRoute,
+  getInvitesRoute,
+  getPendingInvitesRoute,
+  rejectInviteRoute,
+} from './http/routes/invites/index.ts'
+import {
+  getMembersOrganizationRoute,
+  getMembersUnitRoute,
+} from './http/routes/members/index.ts'
+import {
+  createOrganizationRoute,
+  getMembershipRoute,
+  getOrganizationRoute,
+  getOrganizationsRoute,
+  shutdownOrganizationRoute,
+  updateOrganizationRoute,
+} from './http/routes/organizations/index.ts'
+import { createUnitRoute, getUnitsRoute } from './http/routes/units/index.ts'
+import { createUserRoute, getUsersRoute } from './http/routes/users/index.ts'
+import { errorHandler } from './http/routes/_errors/error-handler.ts'
 
 const app = fastify().withTypeProvider<ZodTypeProvider>()
 app.register(fastifyMultipart)
@@ -74,6 +95,9 @@ app.register(fastifyJwt, {
 
 app.setValidatorCompiler(validatorCompiler)
 app.setSerializerCompiler(serializerCompiler)
+
+// Registrar error handler
+app.setErrorHandler(errorHandler)
 
 app.register(swagger, {
   openapi: {
@@ -107,6 +131,7 @@ app.register(swagger, {
       { name: 'Invites', description: 'Gerenciamento de convites' },
       { name: 'Applicants', description: 'Gerenciamento de solicitantes' },
       { name: 'Demands', description: 'Gerenciamento de demandas' },
+      { name: 'Attachments', description: 'Gerenciamento de anexos' },
     ],
   },
   transform: jsonSchemaTransform,
@@ -154,6 +179,17 @@ app.register(getApplicantRoute)
 app.register(getApplicantsRoute)
 app.register(getCheckApplicantRoute)
 
+// Attachments
+app.register(uploadUserAvatarRoute)
+app.register(uploadApplicantAvatarRoute)
+app.register(uploadOrganizationAvatarRoute)
+app.register(uploadDemandDocumentRoute)
+app.register(uploadApplicantDocumentRoute)
+app.register(uploadOrganizationDocumentRoute)
+app.register(getAttachmentsRoute)
+app.register(downloadAttachmentRoute)
+app.register(deleteAttachmentRoute)
+
 // Auth
 app.register(authenticateWithPasswordRoute)
 app.register(getProfileRoute)
@@ -193,6 +229,5 @@ app.register(getUnitsRoute)
 // Users
 app.register(getUsersRoute)
 app.register(createUserRoute)
-app.register(uploadUserAvatarRoute)
 
 app.listen({ port: env.PORT })

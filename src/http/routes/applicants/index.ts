@@ -1,0 +1,5 @@
+export { createApplicantRoute } from './create-applicant.ts'
+export { getApplicantRoute } from './get-applicant.ts'
+export { getApplicantDemandsRoute } from './get-applicant-demands.ts'
+export { getApplicantsRoute } from './get-applicants.ts'
+export { getCheckApplicantRoute } from './get-check-applicant.ts'
