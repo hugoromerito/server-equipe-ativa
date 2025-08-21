@@ -12,6 +12,14 @@ export const errorHandler: FastifyErrorHandler = (error, _request, reply) => {
     })
   }
 
+  // Tratamento para erros de validação do fastify-type-provider-zod
+  if (error.message && (error.message.includes('Invalid input:') || error.message.includes('body/'))) {
+    return reply.status(400).send({
+      message: 'Validation error',
+      error: error.message,
+    })
+  }
+
   if (error instanceof BadRequestError) {
     return reply.status(400).send({
       message: error.message,
@@ -24,5 +32,9 @@ export const errorHandler: FastifyErrorHandler = (error, _request, reply) => {
     })
   }
 
-  return reply.status(500).send({ message: 'Internal server error.' })
+  return reply.status(500).send({ 
+    message: 'Internal server error.',
+    error: error.message,
+    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+  })
 }

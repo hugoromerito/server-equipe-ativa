@@ -6,6 +6,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { fastifyPlugin } from 'fastify-plugin'
 import { db } from '../../db/connection.ts'
 import { members, organizations, units } from '../../db/schema/index.ts'
+import { BadRequestError } from '../routes/_errors/bad-request-error.ts'
+import { UnauthorizedError } from '../routes/_errors/unauthorized-error.ts'
 
 declare module 'fastify' {
   interface FastifyRequestCustom {
@@ -27,7 +29,7 @@ export const auth = fastifyPlugin((app: FastifyInstance) => {
       const { sub } = await this.jwtVerify<{ sub: string }>()
       return sub
     } catch {
-      throw new Error('Token de autenticação inválido')
+      throw new UnauthorizedError('Token de autenticação inválido')
     }
   })
 
@@ -83,7 +85,7 @@ export const auth = fastifyPlugin((app: FastifyInstance) => {
         const errorMessage = unitSlug
           ? 'Você não tem permissão para acessar esta unidade.'
           : 'Você não tem permissão para acessar esta organização.'
-        throw new Error(errorMessage)
+        throw new BadRequestError(errorMessage)
       }
 
       const { organization, member } = row

@@ -4,6 +4,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { users } from '../../../db/schema/index.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const authenticateWithPasswordRoute: FastifyPluginCallbackZod = (
   app
@@ -37,11 +38,11 @@ export const authenticateWithPasswordRoute: FastifyPluginCallbackZod = (
       })
 
       if (!userFromEmail) {
-        throw new Error('E-mail ou senha inválidos.')
+        throw new BadRequestError('E-mail ou senha inválidos.')
       }
 
       if (userFromEmail.password_hash === null) {
-        throw new Error('O usuário não possui uma senha, use o login social.')
+        throw new BadRequestError('O usuário não possui uma senha, use o login social.')
       }
 
       const isPasswordValid = await compare(
@@ -50,7 +51,7 @@ export const authenticateWithPasswordRoute: FastifyPluginCallbackZod = (
       )
 
       if (!isPasswordValid) {
-        throw new Error('Credenciais inválidas.')
+        throw new BadRequestError('Credenciais inválidas.')
       }
 
       const token = await reply.jwtSign(
