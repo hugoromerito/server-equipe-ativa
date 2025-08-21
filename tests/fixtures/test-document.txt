@@ -1,0 +1,2 @@
+Este é um arquivo de exemplo para testes de upload.
+Conteúdo: Lorem ipsum dolor sit amet, consectetur adipiscing elit.

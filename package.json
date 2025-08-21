@@ -1,24 +1,46 @@
 {
-  "name": "server",
+  "name": "server-equipe-ativa",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/server.ts",
   "type": "module",
   "scripts": {
     "dev": "node --env-file .env --experimental-strip-types --no-warnings --watch src/server.ts",
     "start": "node --env-file .env --experimental-strip-types --no-warnings src/server.ts",
-    "db:seed": "node --env-file .env --experimental-strip-types --no-warnings src/db/seed.ts"
+    "db:seed": "node --env-file .env --experimental-strip-types --no-warnings src/db/seed.ts",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
-  "keywords": [],
+  "keywords": [
+    "typescript",
+    "fastify",
+    "postgresql",
+    "drizzle-orm",
+    "rest-api",
+    "nodejs",
+    "jwt",
+    "aws-s3",
+    "openai",
+    "team-management",
+    "organization-management"
+  ],
   "author": "Hugo Queiroz",
-  "license": "ISC",
-  "description": "",
+  "license": "PROPRIETARY",
+  "description": "API REST para gerenciamento de equipes ativas, organizações e demandas com TypeScript, Fastify e PostgreSQL",
   "devDependencies": {
     "@biomejs/biome": "^2.0.6",
     "@types/node": "^24.0.12",
+    "@vitest/coverage-v8": "^3.2.4",
     "drizzle-kit": "^0.31.4",
     "drizzle-seed": "^0.3.1",
+    "testcontainers": "^11.5.1",
     "typescript": "^5.8.3",
-    "ultracite": "5.0.32"
+    "ultracite": "5.0.32",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.23",
