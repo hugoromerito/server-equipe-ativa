@@ -54,6 +54,36 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
     async (request, reply) => {
       const { organizationSlug, unitSlug, applicantSlug } = request.params
       const userId = await request.getCurrentUserId()
+
+      // Buscar organização primeiro
+      const [org] = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.slug, organizationSlug))
+        .limit(1)
+
+      if (!org) {
+        throw new BadRequestError('Organização não encontrada')
+      }
+
+      // Buscar unidade 
+      const [unit] = await db
+        .select()
+        .from(units)
+        .innerJoin(organizations, eq(units.organization_id, organizations.id))
+        .where(
+          and(
+            eq(units.slug, unitSlug),
+            eq(organizations.slug, organizationSlug)
+          )
+        )
+        .limit(1)
+
+      if (!unit) {
+        throw new BadRequestError('Unidade não encontrada')
+      }
+
+      // Agora verificar permissões (sabendo que org e unit existem)
       const { membership } = await request.getUserMembership(
         organizationSlug,
         unitSlug
@@ -68,36 +98,6 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
       if (cannot('create', 'Demand')) {
         throw new UnauthorizedError(
           'Você não possui permissão para registrar demandas.'
-        )
-      }
-
-      // Buscar organização
-      const [org] = await db
-        .select()
-        .from(organizations)
-        .where(eq(organizations.slug, organizationSlug))
-        .limit(1)
-
-      if (!org) {
-        throw new BadRequestError('Organização não encontrada')
-      }
-
-      // Buscar unidade
-      const [unit] = await db
-        .select()
-        .from(units)
-        .innerJoin(organizations, eq(units.organization_id, organizations.id))
-        .where(
-          and(
-            eq(units.slug, unitSlug),
-            eq(organizations.slug, organizationSlug)
-          )
-        )
-        .limit(1)
-
-      if (!unit) {
-        throw new BadRequestError(
-          'Unidade não encontrada ou não pertence à organização.'
         )
       }
 
