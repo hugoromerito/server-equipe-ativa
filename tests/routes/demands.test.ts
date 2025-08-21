@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   applicants,
   members,
@@ -12,6 +12,14 @@ import { createDemandRoute } from '../../src/http/routes/demands/create-demand.t
 import { testDb } from '../setup.ts'
 import { createTestApp } from '../utils/create-test-app.ts'
 import { TestAuth } from '../utils/test-auth.ts'
+
+// Mock do serviço de classificação de IA
+vi.mock('../../src/http/utils/classify-demand-ai.ts', () => ({
+  classifyDemandAi: vi.fn().mockResolvedValue({
+    priority: 'HIGH',
+    category: 'SOCIAL_ASSISTANCE'
+  })
+}))
 
 describe('Demands Routes', () => {
   let testAuth: TestAuth
