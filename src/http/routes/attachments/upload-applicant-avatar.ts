@@ -2,25 +2,25 @@ import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { attachments, users } from '../../../db/schema/index.ts'
+import { applicants, attachments } from '../../../db/schema/index.ts'
 import { storageService } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 
-export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
+export const uploadApplicantAvatarRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
-    '/organizations/:organizationSlug/users/:userId/avatar',
+    '/organizations/:organizationSlug/applicants/:applicantId/avatar',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Attachments'],
-        summary: 'Upload de avatar do usuário',
+        summary: 'Upload de avatar do requerente',
         security: [{ bearerAuth: [] }],
         consumes: ['multipart/form-data'],
         params: z.object({
           organizationSlug: z.string(),
-          userId: z.uuid(),
+          applicantId: z.uuid(),
         }),
         response: {
           201: z.object({
@@ -31,17 +31,27 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
       },
     },
     async (request, reply) => {
-      const { organizationSlug, userId } = request.params as {
+      const { organizationSlug, applicantId } = request.params as {
         organizationSlug: string
-        userId: string
+        applicantId: string
       }
       const currentUserId = await request.getCurrentUserId()
 
       const { organization } = await request.getUserMembership(organizationSlug)
 
-      // Verificar se o usuário pode alterar o avatar (apenas o próprio usuário)
-      if (currentUserId !== userId) {
-        throw new BadRequestError('Você só pode alterar seu próprio avatar.')
+      // Verificar se o requerente existe e pertence à organização
+      const [applicant] = await db
+        .select()
+        .from(applicants)
+        .where(
+          and(
+            eq(applicants.id, applicantId),
+            eq(applicants.organization_id, organization.id)
+          )
+        )
+
+      if (!applicant) {
+        throw new BadRequestError('Requerente não encontrado.')
       }
 
       // Processar upload do arquivo
@@ -53,7 +63,7 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         .from(attachments)
         .where(
           and(
-            eq(attachments.user_id, userId),
+            eq(attachments.applicant_id, applicantId),
             eq(attachments.type, 'AVATAR'),
             eq(attachments.organization_id, organization.id)
           )
@@ -64,35 +74,22 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         const deletePromises = existingAvatars.map(async (avatar) => {
           try {
             await storageService.deleteFile(avatar.key)
-          } catch (error) {
-            // Log error for debugging purposes
-            throw new Error(
-              `Erro ao deletar arquivo do storage (key: ${avatar.key}): ${error}`
-            )
+          } catch {
+            // Continue even if S3 deletion fails
           }
         })
 
-        try {
-          await Promise.allSettled(deletePromises)
-        } catch {
-          // Continue with database deletion even if some file deletions fail
-        }
+        await Promise.allSettled(deletePromises)
 
-        try {
-          await db
-            .delete(attachments)
-            .where(
-              and(
-                eq(attachments.user_id, userId),
-                eq(attachments.type, 'AVATAR'),
-                eq(attachments.organization_id, organization.id)
-              )
+        await db
+          .delete(attachments)
+          .where(
+            and(
+              eq(attachments.applicant_id, applicantId),
+              eq(attachments.type, 'AVATAR'),
+              eq(attachments.organization_id, organization.id)
             )
-        } catch (error) {
-          throw new Error(
-            `Erro ao deletar registros de avatar do banco: ${error}`
           )
-        }
       }
 
       // Upload para S3
@@ -102,7 +99,7 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         fileData.mimetype,
         organization.id,
         'avatar',
-        userId
+        applicantId
       )
 
       // Salvar no banco de dados
@@ -117,19 +114,19 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
           type: 'AVATAR',
           encrypted: uploadResult.encrypted,
           organization_id: organization.id,
-          user_id: userId,
+          applicant_id: applicantId,
           uploaded_by: currentUserId,
         })
         .returning()
 
-      // Atualizar o campo avatar_url na tabela users
+      // Atualizar o campo avatar_url na tabela applicants
       await db
-        .update(users)
+        .update(applicants)
         .set({
           avatar_url: attachment.url,
           updated_at: new Date(),
         })
-        .where(eq(users.id, userId))
+        .where(eq(applicants.id, applicantId))
 
       return reply.status(201).send({
         attachmentId: attachment.id,
