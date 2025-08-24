@@ -6,14 +6,27 @@
   "scripts": {
     "dev": "node --env-file .env --experimental-strip-types --no-warnings --watch src/server.ts",
     "start": "node --env-file .env --experimental-strip-types --no-warnings src/server.ts",
+    "build": "tsc --project tsconfig.json",
+    "build:docker": "docker build -t equipe-ativa-api .",
+    "db:setup": "docker-compose up -d postgres && sleep 5 && npm run db:migrate && npm run db:seed",
     "db:seed": "node --env-file .env --experimental-strip-types --no-warnings src/db/seed.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
+    "db:reset": "docker-compose down -v && npm run db:setup",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check --apply .",
+    "lint:fix": "biome check --apply --unsafe .",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run lint && npm run type-check && npm run test",
+    "prepare": "npm run type-check",
+    "ci": "npm run validate && npm run build"
   },
   "keywords": [
     "typescript",
