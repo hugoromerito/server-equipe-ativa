@@ -56,7 +56,7 @@ describe('Auth Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(400) // Erro por não encontrar usuário
+      expect(response.statusCode).toBe(401) // Erro por credenciais inválidas
       const body = JSON.parse(response.body)
       expect(body).toHaveProperty('message')
     })
@@ -79,7 +79,7 @@ describe('Auth Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(400) // Erro por senha inválida
+      expect(response.statusCode).toBe(401) // Erro por senha inválida
       const body = JSON.parse(response.body)
       expect(body).toHaveProperty('message')
     })

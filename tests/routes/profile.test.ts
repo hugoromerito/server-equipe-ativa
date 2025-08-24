@@ -21,7 +21,7 @@ describe('Profile Routes', () => {
   })
 
   describe('GET /profile', () => {
-    it('should return user profile with valid token', async () => {
+    it('deve retornar o perfil do usuário com token válido', async () => {
       // Arrange
       const { user } = await testAuth.createTestUser({
         name: 'John Doe',
@@ -48,7 +48,7 @@ describe('Profile Routes', () => {
       expect(body.user.name).toBe(user.name)
     })
 
-    it('should return 401 without token', async () => {
+    it('deve retornar erro 401 sem token', async () => {
       // Act
       const response = await app.inject({
         method: 'GET',
@@ -59,7 +59,7 @@ describe('Profile Routes', () => {
       expect(response.statusCode).toBe(401)
     })
 
-    it('should return 401 with invalid token', async () => {
+    it('deve retornar erro 401 com token inválido', async () => {
       // Act
       const response = await app.inject({
         method: 'GET',

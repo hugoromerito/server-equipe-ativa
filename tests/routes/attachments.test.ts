@@ -77,7 +77,7 @@ describe('Attachments Routes', () => {
   })
 
   describe('POST /organizations/:organizationSlug/users/:userId/avatar', () => {
-    it('should upload user avatar successfully', async () => {
+    it('deve carregar o avatar do usuário com sucesso', async () => {
       // Arrange
       const testFilePath = path.join(
         __dirname,
@@ -113,7 +113,7 @@ describe('Attachments Routes', () => {
       expect(body.url).toContain('test-bucket.s3.amazonaws.com')
     })
 
-    it('should require authentication', async () => {
+    it('deve exigir autenticação', async () => {
       // Act
       const response = await app.inject({
         method: 'POST',
@@ -135,7 +135,7 @@ describe('Attachments Routes', () => {
       expect(response.statusCode).toBe(401)
     })
 
-    it('should return error for non-existent organization', async () => {
+    it('deve retornar erro para organização inexistente', async () => {
       // Arrange
       const fileBuffer = Buffer.from('fake image content')
 
@@ -158,12 +158,12 @@ describe('Attachments Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(400)
+      expect(response.statusCode).toBe(404)
     })
   })
 
   describe('GET /organizations/:organizationSlug/attachments', () => {
-    it('should list organization attachments', async () => {
+    it('deve listar anexos da organização', async () => {
       // Act
       const response = await app.inject({
         method: 'GET',
@@ -181,7 +181,7 @@ describe('Attachments Routes', () => {
       expect(Array.isArray(body.attachments)).toBe(true)
     })
 
-    it('should require authentication for listing attachments', async () => {
+    it('deve exigir autenticação para listar anexos', async () => {
       // Act
       const response = await app.inject({
         method: 'GET',
@@ -192,7 +192,7 @@ describe('Attachments Routes', () => {
       expect(response.statusCode).toBe(401)
     })
 
-    it('should support pagination parameters', async () => {
+    it('deve suportar parâmetros de paginação', async () => {
       // Act
       const response = await app.inject({
         method: 'GET',

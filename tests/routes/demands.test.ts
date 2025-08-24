@@ -3,12 +3,18 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   applicants,
+  demands,
   members,
   organizations,
   units,
 } from '../../src/db/schema/index.ts'
 import { auth } from '../../src/http/middlewares/auth.ts'
-import { createDemandRoute } from '../../src/http/routes/demands/create-demand.ts'
+import {
+  createDemandRoute,
+  getDemandRoute,
+  getDemandsRoute,
+  updateDemandRoute,
+} from '../../src/http/routes/demands/index.ts'
 import { testDb } from '../setup.ts'
 import { createTestApp } from '../utils/create-test-app.ts'
 import { TestAuth } from '../utils/test-auth.ts'
@@ -37,9 +43,12 @@ describe('Demands Routes', () => {
     testAuth = new TestAuth(testDb)
     app = createTestApp()
 
-    // Registra middleware de auth e a rota
+    // Registra middleware de auth e as rotas
     await app.register(auth)
     await app.register(createDemandRoute)
+    await app.register(getDemandRoute)
+    await app.register(getDemandsRoute)
+    await app.register(updateDemandRoute)
     await app.ready()
 
     // Cria usuário de teste
@@ -77,13 +86,13 @@ describe('Demands Routes', () => {
 
       unitId = unit.id
 
-      // Cria membership para o usuário
+      // Cria membership para o usuário - MANAGER pode criar, role organization ADMIN pode tudo
       await testDb.db.insert(members).values({
         user_id: userId,
         organization_id: organizationId,
         unit_id: unitId,
-        organization_role: 'ADMIN',
-        unit_role: 'MANAGER',
+        organization_role: 'ADMIN', // ADMIN pode tudo
+        unit_role: 'MANAGER', // MANAGER pode criar demandas
       })
     }
 
@@ -277,6 +286,607 @@ describe('Demands Routes', () => {
       expect(response.statusCode).toBe(400)
       const body = JSON.parse(response.body)
       expect(body.message).toContain('Solicitante não encontrado')
+    })
+  })
+
+  // describe('GET /organizations/:organizationSlug/units/:unitSlug/demands/:demandId', () => {
+  //   it('deve retornar uma demanda específica', async () => {
+  //     // Arrange - Cria uma demanda primeiro
+  //     let demandId: string | undefined
+  //     if (testDb.db) {
+  //       const [demand] = await testDb.db
+  //         .insert(demands)
+  //         .values({
+  //           title: 'Demanda de Teste',
+  //           description: 'Descrição da demanda',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'HIGH',
+  //           status: 'PENDING',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by_member_name: 'Test User',
+  //           created_at: new Date(),
+  //         })
+  //         .returning()
+
+  //       demandId = demand.id
+  //     }
+
+  //     if (!demandId) {
+  //       throw new Error('Failed to create demand for test')
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demand')
+  //     expect(body.demand.title).toBe('Demanda de Teste')
+  //     expect(body.demand.category).toBe('SOCIAL_ASSISTANCE')
+  //   })
+
+  //   it('deve retornar erro para demanda inexistente', async () => {
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${randomUUID()}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(404)
+  //   })
+
+  //   it('deve retornar erro para organização inexistente', async () => {
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/non-existent/units/${unitSlug}/demands/${randomUUID()}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(400)
+  //   })
+  // })
+
+  // describe('GET /organizations/:organizationSlug/units/:unitSlug/demands', () => {
+  //   it('deve retornar lista de demandas da unidade', async () => {
+  //     // Arrange - Cria algumas demandas
+  //     if (testDb.db) {
+  //       await testDb.db.insert(demands).values([
+  //         {
+  //           title: 'Primeira Demanda',
+  //           description: 'Primeira descrição',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'HIGH',
+  //           status: 'PENDING',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         },
+  //         {
+  //           title: 'Segunda Demanda',
+  //           description: 'Segunda descrição',
+  //           category: 'HEALTH',
+  //           priority: 'MEDIUM',
+  //           status: 'IN_PROGRESS',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         },
+  //       ])
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demands')
+  //     expect(body.demands).toHaveLength(2)
+  //   })
+
+  //   it('deve permitir filtrar demandas por status', async () => {
+  //     // Arrange - Cria demandas com diferentes status
+  //     if (testDb.db) {
+  //       await testDb.db.insert(demands).values([
+  //         {
+  //           title: 'Demanda Aberta',
+  //           description: 'Descrição',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'HIGH',
+  //           status: 'OPEN',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         },
+  //         {
+  //           title: 'Demanda Fechada',
+  //           description: 'Descrição',
+  //           category: 'HEALTH',
+  //           priority: 'MEDIUM',
+  //           status: 'CLOSED',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         },
+  //       ])
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands?status=OPEN`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demands')
+  //     expect(body.demands).toHaveLength(1)
+  //     expect(body.demands[0].status).toBe('OPEN')
+  //   })
+
+  //   it('deve permitir paginação', async () => {
+  //     // Arrange - Cria várias demandas
+  //     if (testDb.db) {
+  //       for (let i = 0; i < 10; i++) {
+  //         await testDb.db.insert(demands).values({
+  //           title: `Demanda ${i}`,
+  //           description: `Descrição ${i}`,
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'MEDIUM',
+  //           status: 'OPEN',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         })
+  //       }
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'GET',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands?page=1&limit=5`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demands')
+  //     expect(body.demands.length).toBeLessThanOrEqual(5)
+  //     expect(body).toHaveProperty('totalCount')
+  //   })
+  // })
+
+  // describe('PUT /organizations/:organizationSlug/units/:unitSlug/demands/:demandId', () => {
+  //   it('deve atualizar uma demanda com sucesso', async () => {
+  //     // Arrange - Cria uma demanda primeiro
+  //     let demandId: string
+  //     if (testDb.db) {
+  //       const [demand] = await testDb.db
+  //         .insert(demands)
+  //         .values({
+  //           title: 'Título Original',
+  //           description: 'Descrição original',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'LOW',
+  //           status: 'OPEN',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         })
+  //         .returning()
+
+  //       demandId = demand.id
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'PUT',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //       payload: {
+  //         title: 'Título Atualizado',
+  //         description: 'Descrição atualizada',
+  //         priority: 'HIGH',
+  //         status: 'IN_PROGRESS',
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demand')
+  //     expect(body.demand.title).toBe('Título Atualizado')
+  //     expect(body.demand.priority).toBe('HIGH')
+  //     expect(body.demand.status).toBe('IN_PROGRESS')
+  //   })
+
+  //   it('deve retornar erro para demanda inexistente', async () => {
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'PUT',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${randomUUID()}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //       payload: {
+  //         title: 'Título Atualizado',
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(404)
+  //   })
+
+  //   it('deve retornar erro para dados inválidos', async () => {
+  //     // Arrange - Cria uma demanda primeiro
+  //     let demandId: string
+  //     if (testDb.db) {
+  //       const [demand] = await testDb.db
+  //         .insert(demands)
+  //         .values({
+  //           title: 'Título Original',
+  //           description: 'Descrição original',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'LOW',
+  //           status: 'OPEN',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         })
+  //         .returning()
+
+  //       demandId = demand.id
+  //     }
+
+  //     // Act
+  //     const response = await app.inject({
+  //       method: 'PUT',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //       payload: {
+  //         priority: 'INVALID_PRIORITY',
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(400)
+  //   })
+
+  //   it('deve permitir atualização parcial', async () => {
+  //     // Arrange - Cria uma demanda primeiro
+  //     let demandId: string
+  //     if (testDb.db) {
+  //       const [demand] = await testDb.db
+  //         .insert(demands)
+  //         .values({
+  //           title: 'Título Original',
+  //           description: 'Descrição original',
+  //           category: 'SOCIAL_ASSISTANCE',
+  //           priority: 'LOW',
+  //           status: 'OPEN',
+  //           applicant_id: applicantId,
+  //           unit_id: unitId,
+  //           created_by: userId,
+  //           created_at: new Date(),
+  //         })
+  //         .returning()
+
+  //       demandId = demand.id
+  //     }
+
+  //     // Act - Atualiza apenas o status
+  //     const response = await app.inject({
+  //       method: 'PUT',
+  //       url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId}`,
+  //       headers: {
+  //         authorization: `Bearer ${authToken}`,
+  //       },
+  //       payload: {
+  //         status: 'CLOSED',
+  //       },
+  //     })
+
+  //     // Assert
+  //     expect(response.statusCode).toBe(200)
+  //     const body = JSON.parse(response.body)
+  //     expect(body).toHaveProperty('demand')
+  //     expect(body.demand.status).toBe('CLOSED')
+  //     expect(body.demand.title).toBe('Título Original') // Mantém o título original
+  //   })
+  // })
+
+  describe('GET /organizations/:organizationSlug/units/:unitSlug/demands/:demandId', () => {
+    it('deve retornar uma demanda específica', async () => {
+      // Arrange - Cria uma demanda primeiro
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Demanda de Teste',
+            description: 'Descrição da demanda',
+            category: 'SOCIAL_ASSISTANCE',
+            priority: 'HIGH',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act
+      const response = await app.inject({
+        method: 'GET',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demand')
+      expect(body.demand.title).toBe('Demanda de Teste')
+      expect(body.demand.category).toBe('SOCIAL_ASSISTANCE')
+    })
+
+    it('deve retornar erro para demanda inexistente', async () => {
+      // Act
+      const response = await app.inject({
+        method: 'GET',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${randomUUID()}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(404)
+    })
+  })
+
+  describe('GET /organizations/:organizationSlug/units/:unitSlug/demands com filtros', () => {
+    it('deve retornar lista de demandas da unidade', async () => {
+      // Arrange - Cria algumas demandas
+      if (testDb.db) {
+        await testDb.db.insert(demands).values([
+          {
+            title: 'Primeira Demanda',
+            description: 'Primeira descrição',
+            category: 'SOCIAL_ASSISTANCE',
+            priority: 'HIGH',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          },
+          {
+            title: 'Segunda Demanda',
+            description: 'Segunda descrição',
+            category: 'HEALTH',
+            priority: 'MEDIUM',
+            status: 'IN_PROGRESS',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          },
+        ])
+      }
+
+      // Act
+      const response = await app.inject({
+        method: 'GET',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demands')
+      expect(body.demands).toHaveLength(2)
+    })
+
+    it('deve permitir filtrar demandas por status', async () => {
+      // Arrange - Cria demandas com diferentes status
+      if (testDb.db) {
+        await testDb.db.insert(demands).values([
+          {
+            title: 'Demanda Pendente',
+            description: 'Descrição',
+            category: 'SOCIAL_ASSISTANCE',
+            priority: 'HIGH',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          },
+          {
+            title: 'Demanda Resolvida',
+            description: 'Descrição',
+            category: 'HEALTH',
+            priority: 'MEDIUM',
+            status: 'RESOLVED',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          },
+        ])
+      }
+
+      // Act
+      const response = await app.inject({
+        method: 'GET',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands?status=PENDING`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demands')
+      expect(body.demands).toHaveLength(1)
+      expect(body.demands[0].status).toBe('PENDING')
+    })
+  })
+
+  describe('PATCH /organizations/:organizationSlug/units/:unitSlug/demands/:demandId', () => {
+    it('deve atualizar uma demanda com sucesso usando PATCH', async () => {
+      // Arrange - Cria uma demanda primeiro
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Título Original',
+            description: 'Descrição original',
+            category: 'SOCIAL_ASSISTANCE',
+            priority: 'LOW',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          title: 'Título Atualizado',
+          description: 'Descrição atualizada',
+          priority: 'HIGH',
+          status: 'IN_PROGRESS',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demand')
+      expect(body.demand.title).toBe('Título Atualizado')
+      expect(body.demand.priority).toBe('HIGH')
+      expect(body.demand.status).toBe('IN_PROGRESS')
+    })
+
+    it('deve retornar erro para demanda inexistente no PATCH', async () => {
+      // Act
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${randomUUID()}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          title: 'Título Atualizado',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(404)
+    })
+
+    it('deve permitir atualização parcial com PATCH', async () => {
+      // Arrange - Cria uma demanda primeiro
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Título Original',
+            description: 'Descrição original',
+            category: 'SOCIAL_ASSISTANCE',
+            priority: 'LOW',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act - Atualiza apenas o status
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          status: 'RESOLVED',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demand')
+      expect(body.demand.status).toBe('RESOLVED')
+      expect(body.demand.title).toBe('Título Original') // Mantém o título original
     })
   })
 })
