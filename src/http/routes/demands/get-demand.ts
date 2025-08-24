@@ -19,21 +19,23 @@ import {
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
 
 export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
-    '/organizations/:organizationSlug/units/:unitSlug/demands/:demandSlug',
+    '/organizations/:organizationSlug/units/:unitSlug/demands/:demandId',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Demands'],
-        summary: 'Get demand on unit',
+        summary: 'Obter detalhes da demanda',
+        description: 'Retorna informações detalhadas de uma demanda específica na unidade',
         security: [{ bearerAuth: [] }],
         params: z.object({
           organizationSlug: z.string(),
           unitSlug: z.string(),
-          demandSlug: z.string(),
+          demandId: z.string(), // Aceita UUID
         }),
         response: {
           200: z.object({
@@ -99,7 +101,7 @@ export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
       },
     },
     async (request, _reply) => {
-      const { organizationSlug, unitSlug, demandSlug } = request.params
+      const { organizationSlug, unitSlug, demandId } = request.params
       const userId = await request.getCurrentUserId()
 
       const { membership } = await request.getUserMembership(organizationSlug)
@@ -195,7 +197,7 @@ export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
         .leftJoin(memberUsers, eq(members.user_id, memberUsers.id))
         .where(
           and(
-            eq(demands.id, demandSlug),
+            eq(demands.id, demandId), // Busca diretamente por ID (UUID)
             eq(units.slug, unitSlug),
             eq(organizations.slug, organizationSlug)
           )
@@ -203,7 +205,7 @@ export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       if (demandResult.length === 0) {
-        throw new BadRequestError('Demanda não encontrada.')
+        throw new NotFoundError('Demanda não encontrada.')
       }
 
       const demandData = demandResult[0]

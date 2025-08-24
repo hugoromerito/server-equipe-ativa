@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import {
   demandStatusZodEnum,
+  demandPriorityZodEnum,
   demands,
   members,
   organizations,
@@ -13,38 +14,49 @@ import {
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
 
 export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).patch(
-    '/organizations/:organizationSlug/units/:unitSlug/demands/:demandSlug',
+    '/organizations/:organizationSlug/units/:unitSlug/demands/:demandId',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Demands'],
-        summary: 'Update demand status and member',
+        summary: 'Atualizar demanda',
+        description: 'Atualiza status da demanda e membro responsável',
         security: [{ bearerAuth: [] }],
         params: z.object({
           organizationSlug: z.string(),
           unitSlug: z.string(),
-          demandSlug: z.string(),
+          demandId: z.string(), // Aceita UUID
         }),
         body: z.object({
-          status: demandStatusZodEnum,
+          title: z.string().optional(),
+          description: z.string().optional(),
+          priority: demandPriorityZodEnum.optional(),
+          status: demandStatusZodEnum.optional(),
         }),
         response: {
-          204: z.null(),
+          200: z.object({
+            demand: z.object({
+              id: z.string(),
+              title: z.string(),
+              description: z.string(),
+              priority: demandPriorityZodEnum,
+              status: demandStatusZodEnum,
+              updatedAt: z.date().nullable(),
+            }),
+          }),
         },
       },
     },
     async (request, reply) => {
-      const { organizationSlug, unitSlug, demandSlug } = request.params
+      const { organizationSlug, unitSlug, demandId } = request.params
       const userId = await request.getCurrentUserId()
-      const { status } = request.body
-      const { membership } = await request.getUserMembership(
-        organizationSlug,
-        unitSlug
-      )
+      const updateData = request.body
+      const { membership } = await request.getUserMembership(organizationSlug)
 
       const { cannot } = getUserPermissions(
         userId,
@@ -57,53 +69,55 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
         )
       }
 
-      const unit = await db
-        .select()
-        .from(units)
+      // Verificar se a demanda existe e pertence à organização
+      const [demand] = await db
+        .select({
+          id: demands.id,
+          title: demands.title,
+          description: demands.description,
+          priority: demands.priority,
+          status: demands.status,
+          updated_at: demands.updated_at,
+        })
+        .from(demands)
+        .innerJoin(units, eq(demands.unit_id, units.id))
         .innerJoin(organizations, eq(units.organization_id, organizations.id))
         .where(
           and(
+            eq(demands.id, demandId),
             eq(units.slug, unitSlug),
             eq(organizations.slug, organizationSlug)
           )
         )
-        .limit(1)
 
-      if (!unit[0]) {
-        throw new BadRequestError('Unidade não encontrada na organização.')
+      if (!demand) {
+        throw new NotFoundError('Demanda não encontrada.')
       }
 
-      const member = await db
-        .select({
-          id: members.id,
-          userId: members.user_id,
-          userName: users.name,
-        })
-        .from(members)
-        .innerJoin(users, eq(members.user_id, users.id))
-        .where(
-          and(
-            eq(members.user_id, userId),
-            eq(members.unit_id, unit[0].units.id),
-            eq(members.organization_id, unit[0].units.organization_id)
-          )
-        )
-        .limit(1)
-
-      if (!member[0]) {
-        throw new BadRequestError('Membro da unidade não encontrado.')
-      }
-
-      await db
+      // Atualizar a demanda
+      const [updatedDemand] = await db
         .update(demands)
         .set({
-          status,
-          member_id: member[0].id,
-          updated_by_member_name: member[0].userName ?? null,
+          ...updateData,
+          updated_at: new Date(),
         })
-        .where(eq(demands.id, demandSlug))
+        .where(eq(demands.id, demandId))
+        .returning()
 
-      return reply.status(204).send()
+      if (!updatedDemand) {
+        throw new NotFoundError('Demanda não encontrada.')
+      }
+
+      return reply.send({
+        demand: {
+          id: updatedDemand.id,
+          title: updatedDemand.title,
+          description: updatedDemand.description,
+          priority: updatedDemand.priority,
+          status: updatedDemand.status,
+          updatedAt: updatedDemand.updated_at || null,
+        },
+      })
     }
   )
 }

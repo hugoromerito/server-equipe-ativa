@@ -149,7 +149,8 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Demands'],
-        summary: 'Get demands with pagination, filters and search',
+        summary: 'Listar demandas com filtros',
+        description: 'Retorna demandas com paginação, filtros e busca',
         security: [{ bearerAuth: [] }],
         params: z.object({
           organizationSlug: z.string().min(1),

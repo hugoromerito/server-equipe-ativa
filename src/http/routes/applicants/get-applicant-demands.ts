@@ -4,7 +4,10 @@ import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { applicants, demands, organizations } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 
 export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
@@ -13,7 +16,8 @@ export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Applicants'],
-        summary: 'Get demands of applicant.',
+        summary: 'Listar demandas do solicitante',
+        description: 'Retorna todas as demandas de um solicitante específico',
         security: [{ bearerAuth: [] }],
         params: z.object({
           organizationSlug: z.string(),
@@ -21,9 +25,24 @@ export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
         }),
         response: {
           200: z.object({
-            id: z.uuid(),
-            name: z.string(),
-            birthdate: z.date(),
+            demands: z.array(
+              z.object({
+                id: z.uuid(),
+                title: z.string(),
+                description: z.string().nullable(),
+                status: z.string(),
+                priority: z.string(),
+                category: z.string(),
+                created_at: z.date(),
+                updated_at: z.date().nullable(),
+              })
+            ),
+            applicant: z.object({
+              id: z.uuid(),
+              name: z.string(),
+              phone: z.string(),
+              birthdate: z.date(),
+            }),
           }),
         },
       },
@@ -31,62 +50,55 @@ export const getApplicantDemandsRoute: FastifyPluginCallbackZod = (app) => {
     async (request) => {
       const { organizationSlug, applicantSlug } = request.params
 
-      const organization = await db
-        .select({ id: organizations.id })
-        .from(organizations)
-        .where(eq(organizations.slug, organizationSlug))
-        .limit(1)
-        .then((rows) => rows[0])
+      const userId = await request.getCurrentUserId()
+      const { organization, membership } = await request.getUserMembership(organizationSlug)
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.unit_role || membership.organization_role
+      )
 
-      if (!organization) {
-        throw new BadRequestError('Organização não encontrada.')
+      if (cannot('get', 'Applicant')) {
+        throw new ForbiddenError('Insufficient permissions to view applicants')
       }
 
-      // Busca o applicant com suas demands usando leftJoin
-      const result = await db
-        .select({
-          id: applicants.id,
-          name: applicants.name,
-          birthdate: applicants.birthdate,
-          phone: applicants.phone,
-          demandId: demands.id,
-          demandTitle: demands.title,
-          demandStatus: demands.status,
-        })
-        .from(applicants)
-        .leftJoin(demands, eq(demands.applicant_id, applicants.id))
-        .where(
-          and(
-            eq(applicants.id, applicantSlug),
-            eq(applicants.organization_id, organization.id)
-          )
-        )
+      const applicant = await db.query.applicants.findFirst({
+        where: and(
+          eq(applicants.id, applicantSlug),
+          eq(applicants.organization_id, organization.id)
+        ),
+        columns: {
+          id: true,
+          name: true,
+          phone: true,
+          birthdate: true,
+        },
+      })
 
-      if (result.length === 0) {
-        throw new BadRequestError('Solicitante não encontrado.')
+      if (!applicant) {
+        throw new NotFoundError('Applicant not found')
       }
 
-      // Agrupa os resultados para estruturar as demands
-      const applicant = {
-        id: result[0].id,
-        name: result[0].name,
-        birthdate: new Date(result[0].birthdate),
-        phone: result[0].phone,
-        demands: result
-          .filter(
-            (row) =>
-              row.demandId !== null &&
-              row.demandTitle !== null &&
-              row.demandStatus !== null
-          )
-          .map((row) => ({
-            id: row.demandId as string,
-            title: row.demandTitle as string,
-            status: row.demandStatus as string,
-          })),
-      }
+      const applicantDemands = await db.query.demands.findMany({
+        where: eq(demands.applicant_id, applicantSlug),
+        columns: {
+          id: true,
+          title: true,
+          description: true,
+          status: true,
+          priority: true,
+          category: true,
+          created_at: true,
+          updated_at: true,
+        },
+      })
 
-      return applicant
+      return {
+        demands: applicantDemands,
+        applicant: {
+          ...applicant,
+          birthdate: new Date(applicant.birthdate),
+        },
+      }
     }
   )
 }

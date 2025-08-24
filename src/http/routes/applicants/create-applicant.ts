@@ -318,59 +318,46 @@ export const createApplicantRoute: FastifyPluginCallbackZod = (app) => {
       schema: createApplicantSchema,
     },
     async (request, reply) => {
-      try {
-        const userId = await request.getCurrentUserId()
-        const { organizationSlug } = request.params
-        const rawData = request.body as ApplicantData
+      const userId = await request.getCurrentUserId()
+      const { organizationSlug } = request.params
+      const rawData = request.body as ApplicantData
 
-        const { organization, membership } =
-          await request.getUserMembership(organizationSlug)
+      const { organization, membership } =
+        await request.getUserMembership(organizationSlug)
 
-        if (!organization) {
-          throw new BadRequestError('Organização não encontrada.')
-        }
-
-        const { cannot } = getUserPermissions(
-          userId,
-          membership.unit_role || membership.organization_role
-        )
-
-        if (cannot('create', 'Applicant')) {
-          throw new UnauthorizedError(
-            'Você não tem permissão para criar um novo solicitante.'
-          )
-        }
-
-        // Validar e normalizar dados
-        const applicantData = validateAndNormalizeData(rawData)
-
-        // Verificar unicidade do CPF
-        await validateCpfUniqueness(applicantData.cpf, organization.id)
-
-        // Verificar unicidade do ticket (se fornecido)
-        if (applicantData.ticket) {
-          await validateTicketUniqueness(applicantData.ticket, organization.id)
-        }
-
-        // Criar solicitante
-        const applicantId = await createApplicant(
-          applicantData,
-          organization.id
-        )
-
-        return reply.status(201).send({ applicantId })
-      } catch (error) {
-        if (
-          error instanceof BadRequestError ||
-          error instanceof UnauthorizedError
-        ) {
-          throw error
-        }
-
-        // Log do erro interno
-        request.log.error(error, 'Erro interno ao criar solicitante')
-        throw new BadRequestError('Erro interno do servidor.')
+      if (!organization) {
+        throw new BadRequestError('Organização não encontrada.')
       }
+
+      const { cannot } = getUserPermissions(
+        userId,
+        membership.unit_role || membership.organization_role
+      )
+
+      if (cannot('create', 'Applicant')) {
+        throw new UnauthorizedError(
+          'Você não tem permissão para criar um novo solicitante.'
+        )
+      }
+
+      // Validar e normalizar dados
+      const applicantData = validateAndNormalizeData(rawData)
+
+      // Verificar unicidade do CPF
+      await validateCpfUniqueness(applicantData.cpf, organization.id)
+
+      // Verificar unicidade do ticket (se fornecido)
+      if (applicantData.ticket) {
+        await validateTicketUniqueness(applicantData.ticket, organization.id)
+      }
+
+      // Criar solicitante
+      const applicantId = await createApplicant(
+        applicantData,
+        organization.id
+      )
+
+      return reply.status(201).send({ applicantId })
     }
   )
 }

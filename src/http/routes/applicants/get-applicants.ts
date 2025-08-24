@@ -6,7 +6,7 @@ import { applicants, organizations } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
-import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 
 // Helper function to build filter conditions
 function buildFilterConditions(filters: {
@@ -114,7 +114,8 @@ export const getApplicantsRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Applicants'],
-        summary: 'Get applicants with pagination, filters and search.',
+        summary: 'Listar solicitantes com filtros',
+        description: 'Retorna solicitantes com paginação, filtros e busca',
         security: [{ bearerAuth: [] }],
         params: z.object({
           organizationSlug: z.string(),
@@ -192,7 +193,7 @@ export const getApplicantsRoute: FastifyPluginCallbackZod = (app) => {
       )
 
       if (cannot('get', 'Applicant')) {
-        throw new UnauthorizedError(
+        throw new ForbiddenError(
           'Você não possui permissão para visualizar applicants.'
         )
       }
