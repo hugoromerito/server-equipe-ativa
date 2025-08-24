@@ -9,7 +9,8 @@ export const getOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Organizations'],
-        summary: 'Get details from organization',
+        summary: 'Obter detalhes da organização',
+        description: 'Retorna informações detalhadas de uma organização específica',
         security: [{ bearerAuth: [] }],
         params: z.object({
           slug: z.string(),

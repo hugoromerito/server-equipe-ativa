@@ -6,7 +6,8 @@ import { db } from '../../../db/connection.ts'
 import { organizations } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
-import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
+import { deleteOperationResponses } from '../_errors/response-schemas.ts'
 
 export const shutdownOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).delete(
@@ -21,13 +22,12 @@ export const shutdownOrganizationRoute: FastifyPluginCallbackZod = (app) => {
           slug: z.string(),
         }),
         response: {
-          204: z.null(),
+          200: z.null(),
         },
       },
     },
     async (request, reply) => {
       const { slug } = await request.params
-
       const userId = await request.getCurrentUserId()
       const { membership, organization } = await request.getUserMembership(slug)
 
@@ -42,7 +42,7 @@ export const shutdownOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       )
 
       if (cannot('delete', authOrganization)) {
-        throw new UnauthorizedError(
+        throw new ForbiddenError(
           'Você não possui permissão para encerrar essa organização.'
         )
       }
@@ -51,7 +51,7 @@ export const shutdownOrganizationRoute: FastifyPluginCallbackZod = (app) => {
         .delete(organizations)
         .where(eq(organizations.id, organization.id))
 
-      return reply.status(204).send()
+      return reply.status(200).send()
     }
   )
 }
