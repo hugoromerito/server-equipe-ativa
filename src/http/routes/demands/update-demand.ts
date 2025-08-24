@@ -60,7 +60,9 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       const { cannot } = getUserPermissions(
         userId,
-        membership.unit_role ?? membership.organization_role
+        membership.organization_role === 'ADMIN' 
+          ? membership.organization_role 
+          : membership.unit_role ?? membership.organization_role
       )
 
       if (cannot('update', 'Demand')) {

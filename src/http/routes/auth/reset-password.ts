@@ -4,6 +4,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { tokens, users } from '../../../db/schema/index.ts'
+import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const resetPasswordRoute: FastifyPluginCallbackZod = (app) => {
   app.post(
@@ -24,12 +25,18 @@ export const resetPasswordRoute: FastifyPluginCallbackZod = (app) => {
     async (request, reply) => {
       const { code, password } = request.body
 
+      // Validar se o code é um UUID válido
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(code)) {
+        throw new BadRequestError('Token inválido ou expirado.')
+      }
+
       const tokenFromCode = await db.query.tokens.findFirst({
         where: eq(tokens.id, code),
       })
 
       if (!tokenFromCode) {
-        throw new Error('Token inválido ou expirado.')
+        throw new BadRequestError('Token inválido ou expirado.')
       }
 
       const password_hash = await hash(password, 12)
@@ -41,7 +48,7 @@ export const resetPasswordRoute: FastifyPluginCallbackZod = (app) => {
         .returning()
 
       if (!updatePassword) {
-        throw new Error('Erro ao atualizar a senha.')
+        throw new BadRequestError('Erro ao atualizar a senha.')
       }
 
       await db.delete(tokens).where(eq(tokens.id, code))

@@ -18,7 +18,8 @@ export const permissions: Record<RoleType, PermissionsByRole> = {
     })
   },
   MANAGER: (_, { can, cannot }) => {
-    can('create', 'Applicant') // Pode criar demandas
+    can('get', 'Applicant') // Pode visualizar applicants
+    can('create', 'Applicant') // Pode criar applicants
     can('create', 'Demand') // Pode criar demandas
     can('get', 'Demand') // Pode listar demandas da unidade a qual pertence
     can('manage', 'User') // Pode gerenciar usuários

@@ -1,4 +1,4 @@
-@baseUrl = https://animated-spoon-4rg975jr4xxcj7pw-3333.app.github.dev
+@baseUrl = http://localhost:3333
 @organizationSlug = ubs-central
 @unitSlug = policlinica-barro-vermelho
 @orgId = 2cf09a73-1412-4e58-a272-0cb53251291f
