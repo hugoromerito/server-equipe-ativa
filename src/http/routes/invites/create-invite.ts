@@ -13,7 +13,9 @@ import {
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 
 // Função auxiliar para buscar organização
 async function getOrganizationBySlug(slug: string) {
@@ -24,7 +26,7 @@ async function getOrganizationBySlug(slug: string) {
     .limit(1)
 
   if (!organization[0]) {
-    throw new BadRequestError('Organização não encontrada.')
+    throw new NotFoundError('Organização não encontrada.')
   }
 
   return organization[0]
@@ -75,7 +77,7 @@ async function getUnitBySlug(unitSlug: string, organizationId: string) {
     .limit(1)
 
   if (!unitResult[0]) {
-    throw new BadRequestError(
+    throw new NotFoundError(
       'Unidade não encontrada ou não pertence à organização.'
     )
   }
@@ -190,21 +192,22 @@ export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
-        summary: 'Create a new invite for organization or unit',
+        summary: 'Criar novo convite',
+        description: 'Cria um novo convite para organização ou unidade específica',
         security: [{ bearerAuth: [] }],
         body: z.object({
-          email: z.email(),
+          email: z.string().email(),
           role: roleZodEnum,
           unitSlug: z.string().optional(),
         }),
         params: z.object({
           organizationSlug: z.string(),
         }),
-        response: {
+        response: withAuthErrorResponses({
           201: z.object({
-            inviteId: z.uuid(),
+            inviteId: z.string().uuid(),
           }),
-        },
+        }),
       },
     },
     async (request, reply) => {

@@ -19,7 +19,8 @@ export const getPendingInvitesRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
-        summary: 'Get all user pending invites',
+        summary: 'Listar convites pendentes',
+        description: 'Retorna todos os convites pendentes do usuário',
         security: [{ bearerAuth: [] }],
         response: {
           200: z.object({

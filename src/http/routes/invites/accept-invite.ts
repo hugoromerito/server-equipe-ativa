@@ -1,10 +1,12 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { invites, members, users } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
+import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 
 export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
@@ -13,14 +15,15 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
-        summary: 'Accept an invite',
+        summary: 'Aceitar convite',
+        description: 'Aceita um convite e adiciona o usuário à organização/unidade',
         security: [{ bearerAuth: [] }],
         params: z.object({
-          inviteId: z.uuid(),
+          inviteId: z.string().uuid(),
         }),
-        response: {
+        response: withAuthErrorResponses({
           204: z.null(),
-        },
+        }),
       },
     },
     async (request, reply) => {
@@ -34,7 +37,7 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       if (!invite[0]) {
-        throw new BadRequestError('Convite não encontrado ou expirado.')
+        throw new NotFoundError('Convite não encontrado ou expirado.')
       }
 
       const user = await db
@@ -44,11 +47,30 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       if (!user[0]) {
-        throw new BadRequestError('Usuário não encontrado.')
+        throw new NotFoundError('Usuário não encontrado.')
       }
 
       if (invite[0].email !== user[0].email) {
         throw new BadRequestError('Este convite pertence a outro usuário.')
+      }
+
+      // Verificar se já é membro
+      const existingMembership = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.user_id, userId),
+            eq(members.organization_id, invite[0].organization_id),
+            invite[0].unit_id
+              ? eq(members.unit_id, invite[0].unit_id)
+              : isNull(members.unit_id)
+          )
+        )
+        .limit(1)
+
+      if (existingMembership[0]) {
+        throw new BadRequestError('Você já é membro desta organização/unidade.')
       }
 
       await db.transaction(async (tx) => {
@@ -57,7 +79,7 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
           organization_id: invite[0].organization_id,
           unit_id: invite[0].unit_id,
           organization_role: invite[0].role,
-          unit_role: invite[0].role,
+          unit_role: invite[0].unit_id ? invite[0].role : null,
         })
 
         await tx.delete(invites).where(eq(invites.id, inviteId))

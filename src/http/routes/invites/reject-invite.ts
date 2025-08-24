@@ -6,6 +6,8 @@ import { db } from '../../../db/connection.ts'
 import { invites, users } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
+import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 
 export const rejectInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
@@ -14,13 +16,15 @@ export const rejectInviteRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
-        summary: 'Reject an invite',
+        summary: 'Rejeitar convite',
+        description: 'Rejeita um convite recebido pelo usuário',
+        security: [{ bearerAuth: [] }],
         params: z.object({
-          inviteId: z.uuid(),
+          inviteId: z.string().uuid(),
         }),
-        response: {
+        response: withAuthErrorResponses({
           204: z.null(),
-        },
+        }),
       },
     },
     async (request, reply) => {
@@ -34,7 +38,7 @@ export const rejectInviteRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       if (!invite[0]) {
-        throw new BadRequestError('Convite não encontrado ou expirado.')
+        throw new NotFoundError('Convite não encontrado ou expirado.')
       }
 
       const user = await db
@@ -44,7 +48,7 @@ export const rejectInviteRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       if (!user[0]) {
-        throw new BadRequestError('Usuário não encontrado.')
+        throw new NotFoundError('Usuário não encontrado.')
       }
 
       if (invite[0].email !== user[0].email) {

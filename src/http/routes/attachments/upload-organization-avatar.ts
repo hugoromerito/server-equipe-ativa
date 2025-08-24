@@ -6,6 +6,7 @@ import { attachments, organizations } from '../../../db/schema/index.ts'
 import { storageService } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 
 export const uploadOrganizationAvatarRoute: FastifyPluginCallbackZod = (
   app
@@ -45,7 +46,7 @@ export const uploadOrganizationAvatarRoute: FastifyPluginCallbackZod = (
         membership.organization_role === 'MANAGER'
 
       if (!canUpload) {
-        throw new Error(
+        throw new ForbiddenError(
           'Você não tem permissão para alterar o avatar da organização.'
         )
       }

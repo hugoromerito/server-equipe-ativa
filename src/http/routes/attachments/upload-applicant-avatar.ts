@@ -6,7 +6,7 @@ import { applicants, attachments } from '../../../db/schema/index.ts'
 import { storageService } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
-import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 
 export const uploadApplicantAvatarRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
@@ -51,7 +51,7 @@ export const uploadApplicantAvatarRoute: FastifyPluginCallbackZod = (app) => {
         )
 
       if (!applicant) {
-        throw new BadRequestError('Requerente não encontrado.')
+        throw new NotFoundError('Requerente não encontrado.')
       }
 
       // Processar upload do arquivo

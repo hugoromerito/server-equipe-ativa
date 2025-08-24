@@ -12,7 +12,8 @@ import {
 } from '../../../db/schema/index.ts'
 import { storageService } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
-import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 
 async function updateAvatarFields(attachment: Attachment) {
   if (attachment.type !== 'AVATAR') {
@@ -147,7 +148,7 @@ export const deleteAttachmentRoute: FastifyPluginCallbackZod = (app) => {
         )
 
       if (!attachment) {
-        throw new BadRequestError('Anexo não encontrado.')
+        throw new NotFoundError('Anexo não encontrado.')
       }
 
       // Verificar se o usuário pode deletar o anexo
@@ -159,7 +160,7 @@ export const deleteAttachmentRoute: FastifyPluginCallbackZod = (app) => {
         membership.organization_role === 'MANAGER'
 
       if (!canDelete) {
-        throw new BadRequestError(
+        throw new ForbiddenError(
           'Você não tem permissão para deletar este anexo.'
         )
       }
@@ -179,6 +180,76 @@ export const deleteAttachmentRoute: FastifyPluginCallbackZod = (app) => {
       await db.delete(attachments).where(eq(attachments.id, attachmentId))
 
       return reply.status(204).send()
+    }
+  )
+
+  // Rota mais simples para delete direto
+  app.delete(
+    '/attachments/:attachmentId',
+    {
+      preHandler: [authPreHandler],
+      schema: {
+        tags: ['Attachments'],
+        summary: 'Deletar anexo direto',
+        security: [{ bearerAuth: [] }],
+        params: z.object({
+          attachmentId: z.uuid(),
+        }),
+        response: {
+          200: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const { attachmentId } = request.params as {
+        attachmentId: string
+      }
+      const currentUserId = await request.getCurrentUserId()
+
+      // Verificar se o anexo existe
+      const [attachment] = await db
+        .select()
+        .from(attachments)
+        .where(eq(attachments.id, attachmentId))
+
+      if (!attachment) {
+        throw new NotFoundError('Anexo não encontrado.')
+      }
+
+      // Buscar a organização para obter o slug
+      const [organization] = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, attachment.organization_id))
+
+      if (!organization) {
+        throw new NotFoundError('Organização não encontrada.')
+      }
+
+      // Verificar permissão - usuário deve ter acesso à organização
+      try {
+        await request.getUserMembership(organization.slug)
+      } catch {
+        throw new ForbiddenError('Você não tem permissão para deletar este anexo.')
+      }
+
+      try {
+        // Deletar do S3
+        await storageService.deleteFile(attachment.key)
+      } catch {
+        // Continue with database deletion even if S3 deletion fails
+      }
+
+      // Atualizar campos relacionados
+      await updateAvatarFields(attachment)
+      await updateMainAttachmentFields(attachment, attachmentId)
+
+      // Deletar do banco de dados
+      await db.delete(attachments).where(eq(attachments.id, attachmentId))
+
+      return reply.send({ message: 'Anexo deletado com sucesso.' })
     }
   )
 }

@@ -25,20 +25,6 @@ export const uploadOrganizationDocumentRoute: FastifyPluginCallbackZod = (
         params: z.object({
           organizationSlug: z.string(),
         }),
-        body: z.object({
-          type: z
-            .enum([
-              'DOCUMENT',
-              'IDENTITY',
-              'ADDRESS',
-              'INCOME',
-              'MEDICAL',
-              'LEGAL',
-              'OTHER',
-            ])
-            .optional()
-            .default('DOCUMENT'),
-        }),
         response: {
           201: z.object({
             attachmentId: z.uuid(),
@@ -53,7 +39,10 @@ export const uploadOrganizationDocumentRoute: FastifyPluginCallbackZod = (
       const { organizationSlug } = request.params as {
         organizationSlug: string
       }
-      const { type } = request.body as { type?: string }
+      
+      const body = request.body as any
+      const type = body?.type?.value || body?.type || 'DOCUMENT'
+      
       const currentUserId = await request.getCurrentUserId()
 
       const { organization } = await request.getUserMembership(organizationSlug)

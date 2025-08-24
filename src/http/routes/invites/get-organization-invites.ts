@@ -1,28 +1,34 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { roleZodEnum } from '../../../db/schema/enums.ts'
 import {
   invites,
+  members,
   organizations,
   units,
   users,
 } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
+import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
 import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 
-export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
+export const getOrganizationInvitesRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
-    '/invites/pending',
+    '/organizations/:organizationSlug/invites',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Invites'],
-        summary: 'Listar convites pendentes do usuário',
-        description: 'Retorna convites pendentes do usuário autenticado',
+        summary: 'Listar convites da organização',
+        description: 'Retorna convites da organização com paginação',
         security: [{ bearerAuth: [] }],
+        params: z.object({
+          organizationSlug: z.string(),
+        }),
         response: withAuthErrorResponses({
           200: z.object({
             invites: z.array(
@@ -35,15 +41,13 @@ export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
                   .object({
                     id: z.uuid(),
                     name: z.string().nullable(),
-                    avatarUrl: z.url().nullable(),
                   })
                   .nullable(),
                 unit: z
                   .object({
+                    id: z.uuid(),
                     name: z.string(),
-                    organization: z.object({
-                      name: z.string(),
-                    }),
+                    slug: z.string(),
                   })
                   .nullable(),
               })
@@ -53,18 +57,48 @@ export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
       },
     },
     async (request, reply) => {
+      const { organizationSlug } = request.params
       const userId = await request.getCurrentUserId()
 
-      const currentUser = await db
-        .select({ email: users.email })
-        .from(users)
-        .where(eq(users.id, userId))
+      // Buscar organização
+      const organization = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.slug, organizationSlug))
         .limit(1)
 
-      if (!currentUser[0]) {
-        throw new NotFoundError('Usuário não encontrado.')
+      if (!organization[0]) {
+        throw new NotFoundError('Organização não encontrada.')
       }
 
+      // Verificar membership e permissões
+      const membership = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.user_id, userId),
+            eq(members.organization_id, organization[0].id)
+          )
+        )
+        .limit(1)
+
+      if (!membership[0]) {
+        throw new UnauthorizedError('Você não pertence a esta organização.')
+      }
+
+      const { cannot } = getUserPermissions(
+        userId,
+        membership[0].organization_role
+      )
+
+      if (cannot('get', 'Invite')) {
+        throw new UnauthorizedError(
+          'Você não possui permissão para visualizar convites.'
+        )
+      }
+
+      // Buscar convites da organização
       const invitesList = await db
         .select({
           id: invites.id,
@@ -73,15 +107,14 @@ export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
           createdAt: invites.created_at,
           authorId: users.id,
           authorName: users.name,
-          authorAvatarUrl: users.avatar_url,
+          unitId: units.id,
           unitName: units.name,
-          organizationName: organizations.name,
+          unitSlug: units.slug,
         })
         .from(invites)
         .leftJoin(users, eq(invites.author_id, users.id))
         .leftJoin(units, eq(invites.unit_id, units.id))
-        .leftJoin(organizations, eq(units.organization_id, organizations.id))
-        .where(eq(invites.email, currentUser[0].email))
+        .where(eq(invites.organization_id, organization[0].id))
         .orderBy(desc(invites.created_at))
 
       const formattedInvites = invitesList.map((invite) => ({
@@ -93,18 +126,15 @@ export const getInvitesRoute: FastifyPluginCallbackZod = (app) => {
           ? {
               id: invite.authorId,
               name: invite.authorName,
-              avatarUrl: invite.authorAvatarUrl,
             }
           : null,
-        unit:
-          invite.unitName && invite.organizationName
-            ? {
-                name: invite.unitName,
-                organization: {
-                  name: invite.organizationName,
-                },
-              }
-            : null,
+        unit: invite.unitId
+          ? {
+              id: invite.unitId,
+              name: invite.unitName!,
+              slug: invite.unitSlug!,
+            }
+          : null,
       }))
 
       return reply.status(200).send({ invites: formattedInvites })

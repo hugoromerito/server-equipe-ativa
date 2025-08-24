@@ -10,7 +10,7 @@ import {
 } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
-import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 
 export const uploadDemandDocumentRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
@@ -25,20 +25,6 @@ export const uploadDemandDocumentRoute: FastifyPluginCallbackZod = (app) => {
         params: z.object({
           organizationSlug: z.string(),
           demandId: z.uuid(),
-        }),
-        body: z.object({
-          type: z
-            .enum([
-              'DOCUMENT',
-              'IDENTITY',
-              'ADDRESS',
-              'INCOME',
-              'MEDICAL',
-              'LEGAL',
-              'OTHER',
-            ])
-            .optional()
-            .default('DOCUMENT'),
         }),
         response: {
           201: z.object({
@@ -55,7 +41,10 @@ export const uploadDemandDocumentRoute: FastifyPluginCallbackZod = (app) => {
         organizationSlug: string
         demandId: string
       }
-      const { type } = request.body as { type?: string }
+      
+      const body = request.body as any
+      const type = body?.type?.value || body?.type || 'DOCUMENT'
+      
       const currentUserId = await request.getCurrentUserId()
 
       const { organization } = await request.getUserMembership(organizationSlug)
@@ -73,7 +62,7 @@ export const uploadDemandDocumentRoute: FastifyPluginCallbackZod = (app) => {
         )
 
       if (!demand) {
-        throw new BadRequestError('Demanda não encontrada.')
+        throw new NotFoundError('Demanda não encontrada.')
       }
 
       // Processar upload do arquivo
