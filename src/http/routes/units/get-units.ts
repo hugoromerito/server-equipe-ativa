@@ -2,20 +2,21 @@ import { and, eq, or } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { members, organizations, units } from '../../../db/schema/index.ts'
+import { members, units } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 
 export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
-    '/organizations/:organizationsSlug/units',
+    '/organizations/:organizationSlug/units',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Units'],
-        summary: 'Get units where user is owner or member',
+        summary: 'Listar unidades do usuário',
+        description: 'Retorna unidades onde o usuário é proprietário ou membro',
         security: [{ bearerAuth: [] }],
         params: z.object({
-          organizationsSlug: z.string(),
+          organizationSlug: z.string(),
         }),
         response: {
           200: z.object({
@@ -30,22 +31,37 @@ export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
               })
             ),
           }),
+          400: z.object({
+            error: z.string(),
+            code: z.string(),
+            message: z.string(),
+          }),
+          403: z.object({
+            error: z.string(),
+            code: z.string(),
+            message: z.string(),
+          }),
+          404: z.object({
+            error: z.string(),
+            code: z.string(),
+            message: z.string(),
+          }),
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const userId = await request.getCurrentUserId()
-      const { organizationsSlug } = request.params
+      const { organizationSlug } = request.params
 
-      const [organization] = await db
-        .select({
-          id: organizations.id,
-        })
-        .from(organizations)
-        .where(eq(organizations.slug, organizationsSlug))
+      const { organization, membership } =
+        await request.getUserMembership(organizationSlug)
 
       if (!organization) {
-        return { units: [] }
+        return reply.status(404).send({
+          error: 'Not Found',
+          code: 'ORGANIZATION_NOT_FOUND',
+          message: 'Organização não encontrada',
+        })
       }
 
       const unitsResult = await db
@@ -74,7 +90,7 @@ export const getUnitsRoute: FastifyPluginCallbackZod = (app) => {
         isOwner: ownerId === userId,
       }))
 
-      return { units: unitsWithUserRole }
+      return reply.status(200).send({ units: unitsWithUserRole })
     }
   )
 }

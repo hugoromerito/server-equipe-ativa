@@ -5,19 +5,8 @@ import { db } from '../../../db/connection.ts'
 import { members, roleZodEnum, users } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
-import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
-
-type RoleType = z.infer<typeof roleZodEnum>
-
-// Tipo para o membro com informações do usuário
-interface MemberWithUser {
-  id: string
-  orgRole: RoleType
-  userId: string
-  name: string | null
-  email: string
-  avatarUrl: string | null
-}
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
+import { NotFoundError } from '../_errors/not-found-error.ts'
 
 export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).get(
@@ -26,96 +15,104 @@ export const getMembersOrganizationRoute: FastifyPluginCallbackZod = (app) => {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Members'],
-        summary: 'Get all organization members',
+        summary: 'Listar membros da organização',
+        description: 'Retorna todos os membros da organização com paginação',
         security: [{ bearerAuth: [] }],
         params: z.object({
           slug: z.string(),
+        }),
+        querystring: z.object({
+          page: z.coerce.number().min(1).optional().default(1),
+          pageSize: z.coerce.number().min(1).max(50).optional().default(10),
         }),
         response: {
           200: z.object({
             members: z.array(
               z.object({
                 id: z.uuid(),
-                userId: z.uuid(),
-                orgRole: roleZodEnum,
-                name: z.string().nullable(),
-                email: z.email(),
-                avatarUrl: z.url().nullable(),
+                organization_role: roleZodEnum,
+                user: z.object({
+                  id: z.uuid(),
+                  name: z.string().nullable(),
+                  email: z.email(),
+                  avatar_url: z.string().nullable(),
+                }),
               })
             ),
+            totalCount: z.number(),
           }),
         },
       },
     },
     async (request, reply) => {
       const { slug } = request.params
+      const { page, pageSize } = request.query
       const userId = await request.getCurrentUserId()
-      const { organization, membership } = await request.getUserMembership(slug)
+      
+      // Tratamento de organização não encontrada
+      try {
+        const { organization, membership } = await request.getUserMembership(slug)
 
-      const { cannot } = getUserPermissions(
-        userId,
-        membership.organization_role
-      )
-
-      if (cannot('get', 'User')) {
-        throw new UnauthorizedError(
-          'Você não possui autorização para visualizar os membros dessa unidade.'
+        const { cannot } = getUserPermissions(
+          userId,
+          membership.organization_role
         )
-      }
 
-      const membersResult = await db
-        .select({
-          id: members.id,
-          orgRole: members.organization_role,
-          user: {
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            avatarUrl: users.avatar_url,
-          },
-        })
-        .from(members)
-        .leftJoin(users, eq(users.id, members.user_id))
-        .where(eq(members.organization_id, organization.id))
-        .orderBy(asc(members.organization_role))
-
-      // const membersWithRoles = membersResult.map(({ user, ...member }) => {
-      //   if (!user) {
-      //     throw new Error('User not found for member')
-      //   }
-
-      //   return {
-      //     id: member.id,
-      //     orgRole: member.orgRole,
-      //     userId: user.id,
-      //     name: user.name,
-      //     email: user.email,
-      //     avatarUrl: user.avatarUrl,
-      //   }
-      // })
-
-      const uniqueUsers = new Map<string, MemberWithUser>()
-
-      for (const { user, ...member } of membersResult) {
-        if (!user) {
-          continue
+        if (cannot('get', 'User')) {
+          throw new ForbiddenError(
+            'Você não possui autorização para visualizar os membros dessa organização.'
+          )
         }
 
-        if (!uniqueUsers.has(user.id)) {
-          uniqueUsers.set(user.id, {
-            id: member.id,
-            orgRole: member.orgRole as RoleType,
-            userId: user.id,
-            name: user.name,
-            email: user.email,
-            avatarUrl: user.avatarUrl,
+        // Paginação
+        const offset = (page - 1) * pageSize
+
+        // Buscar total de membros
+        const totalMembersResult = await db
+          .select({
+            id: members.id,
           })
+          .from(members)
+          .leftJoin(users, eq(users.id, members.user_id))
+          .where(eq(members.organization_id, organization.id))
+
+        const totalCount = totalMembersResult.length
+
+        // Buscar membros com paginação
+        const membersResult = await db
+          .select({
+            id: members.id,
+            organization_role: members.organization_role,
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              avatar_url: users.avatar_url,
+            },
+          })
+          .from(members)
+          .leftJoin(users, eq(users.id, members.user_id))
+          .where(eq(members.organization_id, organization.id))
+          .orderBy(asc(members.organization_role))
+          .limit(pageSize)
+          .offset(offset)
+
+        // Filtrar membros com usuários válidos
+        const validMembers = membersResult
+          .filter((member): member is typeof member & { user: NonNullable<typeof member.user> } => 
+            member.user !== null && member.user.id !== null
+          )
+
+        return reply.send({ 
+          members: validMembers,
+          totalCount
+        })
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Organization not found')) {
+          throw new NotFoundError('Organização não encontrada.')
         }
+        throw error
       }
-
-      const membersWithRoles = Array.from(uniqueUsers.values())
-
-      return reply.send({ members: membersWithRoles })
     }
   )
 }
