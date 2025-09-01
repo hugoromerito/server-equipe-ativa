@@ -17,6 +17,9 @@ export const env = createEnv({
     AWS_REGION: z.string().default('us-east-1'),
     MAX_FILE_SIZE: z.coerce.number().positive().default(10 * 1024 * 1024), // 10MB
     MAX_FILES_PER_UPLOAD: z.coerce.number().positive().max(10).default(5),
+    GOOGLE_OAUTH_CLIENT_ID: z.string().min(1, 'Google OAuth Client ID é obrigatório'),
+    GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1, 'Google OAuth Client Secret é obrigatório'),
+    GOOGLE_OAUTH_CLIENT_REDIRECT_URI: z.string().url('Google OAuth Redirect URI deve ser uma URL válida'),
   },
   shared: {},
   client: {},
@@ -34,6 +37,9 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     MAX_FILE_SIZE: process.env.MAX_FILE_SIZE,
     MAX_FILES_PER_UPLOAD: process.env.MAX_FILES_PER_UPLOAD,
+    GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_OAUTH_CLIENT_REDIRECT_URI: process.env.GOOGLE_OAUTH_CLIENT_REDIRECT_URI,
   },
   emptyStringAsUndefined: true,
 })
