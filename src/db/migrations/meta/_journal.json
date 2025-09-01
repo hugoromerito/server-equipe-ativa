@@ -15,6 +15,13 @@
       "when": 1755535032191,
       "tag": "0001_nifty_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1756754203197,
+      "tag": "0002_dark_talkback",
+      "breakpoints": true
     }
   ]
 }

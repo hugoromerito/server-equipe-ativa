@@ -25,7 +25,7 @@ export const accounts = pgTable(
   {
     id: uuid().primaryKey().defaultRandom(),
     provider: accountProviderEnum().notNull(),
-    provider_account_id: uuid().unique().notNull(),
+    provider_account_id: text().unique().notNull(),
     user_id: uuid()
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
