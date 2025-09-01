@@ -65,6 +65,7 @@ import {
 } from './http/routes/attachments/index.ts'
 import {
   authenticateWithPasswordRoute,
+  authenticateWithGoogleRoute,
   getProfileRoute,
   requestPasswordRecoverRoute,
   resetPasswordRoute,
@@ -287,6 +288,7 @@ async function createApp() {
   await Promise.all([
     // Auth routes
     app.register(authenticateWithPasswordRoute),
+    app.register(authenticateWithGoogleRoute),
     app.register(getProfileRoute),
     app.register(requestPasswordRecoverRoute),
     app.register(resetPasswordRoute),
