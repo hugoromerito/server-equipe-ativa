@@ -18,6 +18,9 @@ export default defineConfig({
       AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || "test-access-key",
       AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || "test-secret-key",
       AWS_REGION: process.env.AWS_REGION || "sa-east-1",
+      GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID || "test-google-client-id",
+      GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET || "test-google-client-secret",
+      GOOGLE_OAUTH_CLIENT_REDIRECT_URI: process.env.GOOGLE_OAUTH_CLIENT_REDIRECT_URI || "http://localhost:3000/auth/callback",
     },
     coverage: {
       provider: 'v8',
