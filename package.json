@@ -3,14 +3,18 @@
   "version": "1.0.0",
   "main": "src/server.ts",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "node --env-file .env --experimental-strip-types --no-warnings --watch src/server.ts",
-    "start": "node --experimental-strip-types --no-warnings src/server.ts",
-    "start:prod": "NODE_ENV=production node --experimental-strip-types --no-warnings src/server.ts",
-    "build": "tsc --project tsconfig.json",
+    "start": "tsx src/server.ts",
+    "start:dev": "node --experimental-strip-types --no-warnings src/server.ts",
+    "start:prod": "NODE_ENV=production tsx src/server.ts",
+    "build": "tsc --project tsconfig.build.json",
     "build:docker": "docker build -t equipe-ativa-api .",
     "db:setup": "docker-compose up -d postgres && sleep 5 && npm run db:migrate && npm run db:seed",
-    "db:seed": "node --experimental-strip-types --no-warnings src/db/seed.ts",
+    "db:seed": "tsx src/db/seed.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
@@ -74,6 +78,7 @@
     "fastify": "^5.4.0",
     "fastify-type-provider-zod": "^5.0.3",
     "postgres": "^3.4.7",
+    "tsx": "^4.20.5",
     "validation-br": "^1.5.2",
     "zod": "^3.25.76"
   }
