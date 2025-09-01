@@ -25,7 +25,6 @@
     "lint:fix": "biome check --apply --unsafe .",
     "type-check": "tsc --noEmit",
     "validate": "npm run lint && npm run type-check && npm run test",
-    "prepare": "npm run type-check",
     "ci": "npm run validate && npm run build"
   },
   "keywords": [
