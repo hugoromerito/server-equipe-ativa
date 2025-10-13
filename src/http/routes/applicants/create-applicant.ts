@@ -26,6 +26,14 @@ interface ApplicantData {
   mother: string | null
   father: string | null
   ticket: string | null
+  sus_card: string | null
+  zip_code: string | null
+  state: string | null
+  city: string | null
+  street: string | null
+  neighborhood: string | null
+  complement: string | null
+  number: string | null
   observation: string | null
 }
 
@@ -177,6 +185,14 @@ function validateAndNormalizeData(data: ApplicantData): ApplicantData {
     mother: data.mother ? normalizeName(data.mother) : null,
     father: data.father ? normalizeName(data.father) : null,
     ticket: data.ticket ? normalizeTicket(data.ticket) : null,
+    sus_card: data.sus_card?.trim() || null,
+    zip_code: data.zip_code?.trim() || null,
+    state: data.state?.trim().toUpperCase() || null,
+    city: data.city?.trim() || null,
+    street: data.street?.trim() || null,
+    neighborhood: data.neighborhood?.trim() || null,
+    complement: data.complement?.trim() || null,
+    number: data.number?.trim() || null,
     observation: data.observation?.trim() || null,
   }
 
@@ -216,6 +232,14 @@ async function createApplicant(
       mother: data.mother,
       father: data.father,
       ticket: data.ticket,
+      sus_card: data.sus_card,
+      zip_code: data.zip_code,
+      state: data.state,
+      city: data.city,
+      street: data.street,
+      neighborhood: data.neighborhood,
+      complement: data.complement,
+      number: data.number,
       observation: data.observation,
       organization_id: organizationId,
     })
@@ -290,6 +314,64 @@ const createApplicantSchema = {
       .string()
       .trim()
       .min(1)
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    sus_card: z
+      .string()
+      .trim()
+      .min(1)
+      .max(20, 'Cartão SUS inválido')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    zip_code: z
+      .string()
+      .trim()
+      .min(8, 'CEP deve ter 8 dígitos')
+      .max(10, 'CEP inválido')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    state: z
+      .string()
+      .trim()
+      .max(2, 'Estado deve ter 2 caracteres')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    city: z
+      .string()
+      .trim()
+      .max(100, 'Cidade deve ter no máximo 100 caracteres')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    street: z
+      .string()
+      .trim()
+      .max(200, 'Rua deve ter no máximo 200 caracteres')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    neighborhood: z
+      .string()
+      .trim()
+      .max(100, 'Bairro deve ter no máximo 100 caracteres')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    complement: z
+      .string()
+      .trim()
+      .max(200, 'Complemento deve ter no máximo 200 caracteres')
+      .nullable()
+      .optional()
+      .transform((val) => val || null),
+    number: z
+      .string()
+      .trim()
+      .max(20, 'Número deve ter no máximo 20 caracteres')
       .nullable()
       .optional()
       .transform((val) => val || null),
