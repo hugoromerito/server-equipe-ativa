@@ -117,6 +117,38 @@ describe('Applicants Routes', () => {
       expect(body).toHaveProperty('applicantId')
     })
 
+    it('deve criar um novo solicitante com campos de endereço e cartão SUS', async () => {
+      // Act
+      const response = await app.inject({
+        method: 'POST',
+        url: `/organizations/${organizationSlug}/applicants`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          name: 'Maria Santos',
+          birthdate: '1985-05-15',
+          cpf: '52998224725', // CPF válido
+          phone: '21987654321',
+          mother: 'Ana Santos',
+          father: 'Carlos Santos',
+          sus_card: '123456789012345',
+          zip_code: '12345678',
+          state: 'RJ',
+          city: 'Rio de Janeiro',
+          street: 'Rua das Flores',
+          neighborhood: 'Centro',
+          complement: 'Apto 101',
+          number: '123',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(201)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('applicantId')
+    })
+
     it('deve retornar erro para dados inválidos', async () => {
       // Act
       const response = await app.inject({
