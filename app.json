@@ -16,6 +16,9 @@
       "url": "heroku/nodejs"
     }
   ],
+  "build": {
+    "disable_prebuild": true
+  },
   "formation": {
     "web": {
       "quantity": 1,

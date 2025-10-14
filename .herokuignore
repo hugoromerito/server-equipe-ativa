@@ -1,0 +1,45 @@
+# Arquivos e diretórios ignorados no deploy do Heroku
+.git
+.gitignore
+README.md
+HEROKU_DEPLOY.md
+CONTRIBUTING.md
+TESTING_GUIDE.md
+ERROR_HANDLING_GUIDE.md
+ATTACHMENTS_API.md
+ATTACHMENTS_TESTS.md
+
+# Arquivos de desenvolvimento
+.env
+.env.local
+.env.example
+*.log
+logs/
+
+# Arquivos de teste
+tests/
+vitest.config.ts
+**/*.test.ts
+**/*.spec.ts
+
+# Arquivos de build local
+dist/
+build/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+docker/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript build config (não precisamos compilar no Heroku)
+tsconfig.build.json
