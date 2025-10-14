@@ -204,6 +204,40 @@ docker-compose down
 docker-compose logs
 ```
 
+## 🌐 Deploy
+
+### Heroku
+
+Para fazer deploy no Heroku, siga o guia completo em [HEROKU_DEPLOY.md](./HEROKU_DEPLOY.md).
+
+**Deploy rápido**:
+```bash
+# 1. Instalar Heroku CLI
+# 2. Login no Heroku
+heroku login
+
+# 3. Usar script automatizado
+./deploy-heroku.sh meu-app-name
+
+# 4. Configurar variáveis obrigatórias
+heroku config:set JWT_SECRET=$(openssl rand -base64 32)
+heroku config:set AWS_ACCESS_KEY_ID=sua_access_key
+heroku config:set AWS_SECRET_ACCESS_KEY=sua_secret_key
+heroku config:set AWS_BUCKET_NAME=seu-bucket
+heroku config:set OPENAI_API_KEY=sua_openai_key
+heroku config:set GOOGLE_OAUTH_CLIENT_ID=seu_google_client_id
+heroku config:set GOOGLE_OAUTH_CLIENT_SECRET=seu_google_client_secret
+```
+
+**URLs após deploy**:
+- API: `https://seu-app.herokuapp.com`
+- Docs: `https://seu-app.herokuapp.com/docs`
+- Health: `https://seu-app.herokuapp.com/health`
+
+### Railway (Legado)
+
+O projeto estava anteriormente configurado para Railway com `railway.toml`. Para migrar para Heroku, remova o arquivo `railway.toml` e siga o guia do Heroku.
+
 ## 🤝 Contribuindo
 
 **⚠️ PROJETO PRIVADO**: Este é um projeto interno da empresa. Contribuições são restritas apenas a funcionários autorizados.

@@ -1,0 +1,79 @@
+{
+  "name": "server-equipe-ativa",
+  "description": "API REST para gerenciamento de equipes ativas, organizações e demandas",
+  "repository": "https://github.com/hugoromerito/server-equipe-ativa",
+  "keywords": [
+    "typescript",
+    "fastify",
+    "postgresql",
+    "drizzle-orm",
+    "rest-api",
+    "nodejs"
+  ],
+  "stack": "heroku-22",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "JWT_SECRET": {
+      "description": "JWT secret key for authentication",
+      "generator": "secret"
+    },
+    "AWS_ACCESS_KEY_ID": {
+      "description": "AWS access key for S3 storage"
+    },
+    "AWS_SECRET_ACCESS_KEY": {
+      "description": "AWS secret key for S3 storage"
+    },
+    "AWS_REGION": {
+      "description": "AWS region for S3 storage",
+      "value": "us-east-1"
+    },
+    "AWS_S3_BUCKET": {
+      "description": "AWS S3 bucket name for file storage"
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API key for AI classification"
+    },
+    "GOOGLE_CLIENT_ID": {
+      "description": "Google OAuth client ID"
+    },
+    "GOOGLE_CLIENT_SECRET": {
+      "description": "Google OAuth client secret"
+    },
+    "FRONTEND_URL": {
+      "description": "Frontend application URL for CORS",
+      "value": "http://localhost:3000"
+    }
+  },
+  "scripts": {
+    "postdeploy": "npm run db:seed"
+  },
+  "environments": {
+    "test": {
+      "addons": [
+        "heroku-postgresql:essential-0"
+      ],
+      "scripts": {
+        "test": "npm test"
+      }
+    }
+  }
+}
