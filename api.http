@@ -321,7 +321,7 @@ Content-Type: application/json
 {
   "title": "Consulta médica cardiologista",
   "description": "Paciente necessita consulta com cardiologista para acompanhamento",
-  "category": "HEALTH",
+  "category": "PSYCHOLOGIST",
   "priority": "HIGH",
   "urgency": "URGENT",
   "attachments": []
@@ -330,7 +330,7 @@ Content-Type: application/json
 ###
 
 # @name listar_demandas
-GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands?page=1&limit=20&sort_by=created_at&sort_order=desc&status=PENDING&category=HEALTH&priority=HIGH
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/demands?page=1&limit=20&sort_by=created_at&sort_order=desc&status=PENDING&category=PSYCHOLOGIST&priority=HIGH
 Authorization: {{tokenAuth}}
 
 ###
@@ -374,7 +374,7 @@ Authorization: {{tokenAuth}}
 ###
 
 # @name relatorio_demandas
-GET {{baseUrl}}/organizations/{{organizationSlug}}/reports/demands?start_date=2025-01-01&end_date=2025-12-31&unit={{unitSlug}}&category=HEALTH
+GET {{baseUrl}}/organizations/{{organizationSlug}}/reports/demands?start_date=2025-01-01&end_date=2025-12-31&unit={{unitSlug}}&category=PSYCHOLOGIST
 Authorization: {{tokenAuth}}
 
 ###
@@ -507,7 +507,7 @@ Content-Type: application/json
 {
   "applicantId": "{{applicantId}}",
   "title": "Demanda urgente",
-  "category": "HEALTH",
+  "category": "PSYCHOLOGIST",
   "priority": "HIGH"
 }
 
@@ -555,3 +555,237 @@ Content-Type: application/json
 # @name deletar_categoria
 DELETE {{baseUrl}}/organizations/{{organizationSlug}}/categories/{{demandId}}
 Authorization: {{tokenAuth}}
+
+###############################################################################
+# 💼 CARGOS/FUNÇÕES (JOB TITLES)
+###############################################################################
+
+# @name criar_cargo
+POST {{baseUrl}}/organizations/{{organizationSlug}}/job-titles
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Recepcionista",
+  "description": "Responsável pelo atendimento inicial e agendamento de consultas"
+}
+
+###
+
+# @name criar_cargo_especifico_unidade
+POST {{baseUrl}}/organizations/{{organizationSlug}}/job-titles
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Coordenador de Enfermagem",
+  "description": "Coordenador responsável pela equipe de enfermagem",
+  "unit_id": "{{unitId}}"
+}
+
+###
+
+# @name listar_cargos_organizacao
+GET {{baseUrl}}/organizations/{{organizationSlug}}/job-titles?page=1&limit=20
+Authorization: {{tokenAuth}}
+
+###
+
+# @name listar_cargos_unidade
+GET {{baseUrl}}/organizations/{{organizationSlug}}/job-titles?unit_id={{unitId}}&page=1&limit=20
+Authorization: {{tokenAuth}}
+
+###
+
+# @name buscar_cargo
+GET {{baseUrl}}/organizations/{{organizationSlug}}/job-titles/123e4567-e89b-12d3-a456-426614174000
+Authorization: {{tokenAuth}}
+
+###
+
+# @name atualizar_cargo
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/job-titles/123e4567-e89b-12d3-a456-426614174000
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Recepcionista Senior",
+  "description": "Responsável pelo atendimento e supervisão de estagiários"
+}
+
+###
+
+# @name deletar_cargo
+DELETE {{baseUrl}}/organizations/{{organizationSlug}}/job-titles/123e4567-e89b-12d3-a456-426614174000
+Authorization: {{tokenAuth}}
+
+###############################################################################
+# 📅 SISTEMA DE AGENDAMENTO
+###############################################################################
+
+@memberId = 123e4567-e89b-12d3-a456-426614174001
+@date = 2025-10-20
+@time = 13:00
+
+# @name atualizar_dias_trabalho
+# Define em quais dias da semana o profissional trabalha
+# 0=Domingo, 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/{{memberId}}/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": [1, 2, 5]
+}
+
+###
+
+# @name buscar_profissionais_disponiveis
+# Retorna profissionais disponíveis para uma data/hora específica
+# Considera: dias de trabalho, categoria profissional e conflitos de horário
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/available?date={{date}}&time={{time}}&category=PSYCHOLOGIST
+Authorization: {{tokenAuth}}
+
+###
+
+# @name buscar_profissionais_disponiveis_sem_categoria
+# Busca todos os profissionais disponíveis, sem filtrar por categoria
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/available?date={{date}}&time={{time}}
+Authorization: {{tokenAuth}}
+
+###
+
+# @name criar_demanda_com_agendamento
+# Cria demanda com data, hora e profissional responsável
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/applicants/{{applicantId}}/demands
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "title": "Consulta Psicológica - Ansiedade",
+  "description": "Paciente apresenta sintomas de ansiedade generalizada e necessita de acompanhamento psicológico regular",
+  "scheduledDate": "2025-10-20",
+  "scheduledTime": "13:00",
+  "responsibleId": "{{memberId}}"
+}
+
+###
+
+# @name criar_demanda_sem_agendamento
+# Cria demanda sem agendamento (para agendar posteriormente)
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/applicants/{{applicantId}}/demands
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "title": "Avaliação Nutricional",
+  "description": "Paciente necessita de avaliação nutricional completa para início de tratamento"
+}
+
+###
+
+###############################################################################
+# 📅 EXEMPLOS DE CENÁRIOS DE AGENDAMENTO
+###############################################################################
+
+# CENÁRIO 1: Configurar três psicólogos com diferentes disponibilidades
+# Paula e Marcos trabalham Segunda, Terça e Sexta
+# André trabalha apenas Quarta
+
+# Paula - Segunda, Terça, Sexta
+# @name config_paula
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/paula-uuid/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": [1, 2, 5]
+}
+
+###
+
+# Marcos - Segunda, Terça, Sexta
+# @name config_marcos
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/marcos-uuid/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": [1, 2, 5]
+}
+
+###
+
+# André - Apenas Quarta
+# @name config_andre
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/andre-uuid/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": [3]
+}
+
+###
+
+# CENÁRIO 2: Buscar disponibilidade para Segunda-feira
+# Resultado esperado: Paula e Marcos disponíveis, André não trabalha neste dia
+# @name buscar_segunda
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/available?date=2025-10-20&time=13:00&category=PSYCHOLOGIST
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 3: Buscar disponibilidade para Quarta-feira  
+# Resultado esperado: Apenas André disponível
+# @name buscar_quarta
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/available?date=2025-10-22&time=13:00&category=PSYCHOLOGIST
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 4: Agendar com Paula na Segunda às 13h
+# @name agendar_paula
+POST {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/applicants/{{applicantId}}/demands
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "title": "Sessão de Terapia Cognitivo-Comportamental",
+  "description": "Paciente com quadro de ansiedade generalizada necessita de acompanhamento psicológico com TCC",
+  "scheduledDate": "2025-10-20",
+  "scheduledTime": "13:00",
+  "responsibleId": "paula-uuid"
+}
+
+###
+
+# CENÁRIO 5: Nova busca para Segunda às 13h (após agendar com Paula)
+# Resultado esperado: Paula com hasConflict=true, Marcos sem conflito
+# @name buscar_apos_agendamento
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/available?date=2025-10-20&time=13:00&category=PSYCHOLOGIST
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 6: Profissional que trabalha todos os dias
+# @name config_todos_dias
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/joao-uuid/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": [0, 1, 2, 3, 4, 5, 6]
+}
+
+###
+
+# CENÁRIO 7: Remover restrição de dias (trabalha todos os dias)
+# @name remover_restricao
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/maria-uuid/working-days
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "workingDays": null
+}

@@ -10,6 +10,7 @@ import type {
 import {
   applicants,
   demands,
+  members,
   organizations,
   units,
   users,
@@ -34,41 +35,19 @@ const createDemandBodySchema = z.object({
     .min(10, 'Descrição deve ter pelo menos 10 caracteres.')
     .max(2000, 'Descrição deve ter no máximo 2000 caracteres.')
     .trim(),
-  zip_code: z
+  scheduledDate: z
     .string()
-    .regex(/^\d{5}-?\d{3}$/, 'CEP deve ter formato válido (XXXXX-XXX).')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD')
     .nullable()
     .optional(),
-  state: z
+  scheduledTime: z
     .string()
-    .min(2, 'Estado deve ter pelo menos 2 caracteres.')
-    .max(50, 'Estado deve ter no máximo 50 caracteres.')
+    .regex(/^\d{2}:\d{2}$/, 'Hora deve estar no formato HH:MM')
     .nullable()
     .optional(),
-  city: z
+  responsibleId: z
     .string()
-    .min(2, 'Cidade deve ter pelo menos 2 caracteres.')
-    .max(100, 'Cidade deve ter no máximo 100 caracteres.')
-    .nullable()
-    .optional(),
-  street: z
-    .string()
-    .max(200, 'Rua deve ter no máximo 200 caracteres.')
-    .nullable()
-    .optional(),
-  neighborhood: z
-    .string()
-    .max(100, 'Bairro deve ter no máximo 100 caracteres.')
-    .nullable()
-    .optional(),
-  complement: z
-    .string()
-    .max(200, 'Complemento deve ter no máximo 200 caracteres.')
-    .nullable()
-    .optional(),
-  number: z
-    .string()
-    .max(20, 'Número deve ter no máximo 20 caracteres.')
+    .uuid('ID do responsável deve ser um UUID válido')
     .nullable()
     .optional(),
 })
@@ -216,14 +195,36 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
         const {
           title,
           description,
-          zip_code,
-          state,
-          city,
-          street,
-          neighborhood,
-          complement,
-          number,
+          scheduledDate,
+          scheduledTime,
+          responsibleId,
         } = request.body
+
+        // Validar que se scheduledDate for fornecido, scheduledTime também deve ser
+        if (scheduledDate && !scheduledTime) {
+          throw new BadRequestError('Hora de agendamento é obrigatória quando data é fornecida.')
+        }
+        if (scheduledTime && !scheduledDate) {
+          throw new BadRequestError('Data de agendamento é obrigatória quando hora é fornecida.')
+        }
+
+        // Se responsibleId for fornecido, verificar se o membro existe na unidade
+        if (responsibleId) {
+          const [responsibleMember] = await db
+            .select()
+            .from(members)
+            .where(
+              and(
+                eq(members.id, responsibleId),
+                eq(members.unit_id, unit.id)
+              )
+            )
+            .limit(1)
+
+          if (!responsibleMember) {
+            throw new BadRequestError('Profissional responsável não encontrado nesta unidade.')
+          }
+        }
 
         // Classificar demanda com IA
         logger.info(`Classificando demanda com IA: "${title}"`)
@@ -239,13 +240,9 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
             description,
             priority: finalPriority,
             category: finalCategory,
-            zip_code,
-            state,
-            city,
-            street,
-            neighborhood,
-            complement,
-            number,
+            scheduled_date: scheduledDate || null,
+            scheduled_time: scheduledTime || null,
+            responsible_id: responsibleId || null,
             unit_id: unit.id,
             applicant_id: applicant.id,
             owner_id: userId,

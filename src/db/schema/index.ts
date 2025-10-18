@@ -17,4 +17,5 @@ export {
   tokenTypeEnum,
   tokenTypeZodEnum,
 } from './enums.ts'
+export { jobTitles } from './job-titles.ts'
 export { invites, members, organizations, units } from './organization.ts'

@@ -2,6 +2,7 @@ import {
   date,
   pgTable,
   text,
+  time,
   timestamp,
   uniqueIndex,
   uuid,
@@ -21,13 +22,12 @@ export const demands = pgTable('demands', {
   status: demandStatusEnum().default('PENDING').notNull(),
   priority: demandPriorityEnum().notNull(),
   category: demandCategoryEnum().notNull(),
-  zip_code: text(),
-  state: text(),
-  city: text(),
-  street: text(),
-  neighborhood: text(),
-  complement: text(),
-  number: text(),
+  
+  // Campos de agendamento
+  scheduled_date: date(), // Data agendada para atendimento
+  scheduled_time: time(), // Hora agendada para atendimento
+  responsible_id: uuid().references(() => members.id, { onDelete: 'set null' }), // Profissional responsável pelo atendimento
+  
   attachment: text(),
   created_by_member_name: text().notNull(),
   updated_by_member_name: text(),

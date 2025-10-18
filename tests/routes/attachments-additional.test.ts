@@ -142,7 +142,7 @@ describe('Additional Attachments Routes', () => {
         .values({
           title: 'Test Demand',
           description: 'Test demand description',
-          category: 'SOCIAL_ASSISTANCE',
+          category: 'SOCIAL_WORKER',
           priority: 'MEDIUM',
           status: 'PENDING',
           applicant_id: applicantId,

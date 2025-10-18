@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm'
 import { attachments } from './attachments.ts'
 import { accounts, tokens, users } from './auth.ts'
 import { applicants, demands } from './demands.ts'
+import { jobTitles } from './job-titles.ts'
 import { invites, members, organizations, units } from './organization.ts'
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -34,7 +35,13 @@ export const demandsRelations = relations(demands, ({ many, one }) => ({
     references: [users.id],
   }),
   member: one(members, {
+    relationName: 'demandMember',
     fields: [demands.member_id],
+    references: [members.id],
+  }),
+  responsible: one(members, {
+    relationName: 'demandResponsible',
+    fields: [demands.responsible_id],
     references: [members.id],
   }),
   attachments: many(attachments),
@@ -55,6 +62,18 @@ export const inviteRelations = relations(invites, ({ one }) => ({
   }),
 }))
 
+export const jobTitlesRelations = relations(jobTitles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [jobTitles.organization_id],
+    references: [organizations.id],
+  }),
+  unit: one(units, {
+    fields: [jobTitles.unit_id],
+    references: [units.id],
+  }),
+  members: many(members),
+}))
+
 export const membersRelations = relations(members, ({ one, many }) => ({
   user: one(users, {
     fields: [members.user_id],
@@ -68,7 +87,16 @@ export const membersRelations = relations(members, ({ one, many }) => ({
     fields: [members.unit_id],
     references: [units.id],
   }),
-  demands: many(demands),
+  jobTitle: one(jobTitles, {
+    fields: [members.job_title_id],
+    references: [jobTitles.id],
+  }),
+  demands: many(demands, {
+    relationName: 'demandMember',
+  }),
+  responsibleFor: many(demands, {
+    relationName: 'demandResponsible',
+  }),
 }))
 
 export const organizationsRelations = relations(
@@ -83,6 +111,7 @@ export const organizationsRelations = relations(
     units: many(units),
     applicants: many(applicants),
     attachments: many(attachments),
+    jobTitles: many(jobTitles),
   })
 )
 
@@ -105,6 +134,7 @@ export const unitRelations = relations(units, ({ one, many }) => ({
   invites: many(invites),
   members: many(members),
   demands: many(demands),
+  jobTitles: many(jobTitles),
 }))
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -115,8 +145,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   owns_organizations: many(organizations),
   owns_units: many(units),
   owns_demands: many(demands),
-  attachments: many(attachments),
-  uploaded_attachments: many(attachments),
+  attachments: many(attachments, {
+    relationName: 'userAttachments',
+  }),
+  uploaded_attachments: many(attachments, {
+    relationName: 'uploadedAttachments',
+  }),
 }))
 
 // Nova relação para attachments
@@ -126,6 +160,7 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
     references: [organizations.id],
   }),
   user: one(users, {
+    relationName: 'userAttachments',
     fields: [attachments.user_id],
     references: [users.id],
   }),
@@ -138,6 +173,7 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
     references: [demands.id],
   }),
   uploadedBy: one(users, {
+    relationName: 'uploadedAttachments',
     fields: [attachments.uploaded_by],
     references: [users.id],
   }),

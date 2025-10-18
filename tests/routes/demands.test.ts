@@ -23,7 +23,7 @@ import { TestAuth } from '../utils/test-auth.ts'
 vi.mock('../../src/http/utils/classify-demand-ai.ts', () => ({
   classifyDemandAi: vi.fn().mockResolvedValue({
     priority: 'HIGH',
-    category: 'SOCIAL_ASSISTANCE'
+    category: 'SOCIAL_WORKER'
   })
 }))
 
@@ -128,13 +128,6 @@ describe('Demands Routes', () => {
         title: 'Solicitar auxílio moradia',
         description:
           'Preciso de ajuda para pagar o aluguel este mês devido a dificuldades financeiras',
-        zip_code: '01234-567',
-        state: 'SP',
-        city: 'São Paulo',
-        street: 'Rua das Flores',
-        neighborhood: 'Centro',
-        complement: 'Apt 123',
-        number: '456',
       }
 
       // Act
@@ -159,13 +152,6 @@ describe('Demands Routes', () => {
       const demandData = {
         title: 'Test demand',
         description: 'Test description',
-        zip_code: null,
-        state: null,
-        city: null,
-        street: null,
-        neighborhood: null,
-        complement: null,
-        number: null,
       }
 
       // Act
@@ -201,13 +187,6 @@ describe('Demands Routes', () => {
       const demandData = {
         title: 'Test demand',
         description: 'Test description',
-        zip_code: null,
-        state: null,
-        city: null,
-        street: null,
-        neighborhood: null,
-        complement: null,
-        number: null,
       }
 
       // Act
@@ -231,13 +210,6 @@ describe('Demands Routes', () => {
       const demandData = {
         title: 'Test demand',
         description: 'Test description',
-        zip_code: null,
-        state: null,
-        city: null,
-        street: null,
-        neighborhood: null,
-        complement: null,
-        number: null,
       }
 
       // Act
@@ -261,13 +233,6 @@ describe('Demands Routes', () => {
       const demandData = {
         title: 'Test demand',
         description: 'Test description',
-        zip_code: null,
-        state: null,
-        city: null,
-        street: null,
-        neighborhood: null,
-        complement: null,
-        number: null,
       }
 
       const nonExistentApplicantId = randomUUID()
@@ -299,7 +264,7 @@ describe('Demands Routes', () => {
   //         .values({
   //           title: 'Demanda de Teste',
   //           description: 'Descrição da demanda',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'HIGH',
   //           status: 'PENDING',
   //           applicant_id: applicantId,
@@ -330,7 +295,7 @@ describe('Demands Routes', () => {
   //     const body = JSON.parse(response.body)
   //     expect(body).toHaveProperty('demand')
   //     expect(body.demand.title).toBe('Demanda de Teste')
-  //     expect(body.demand.category).toBe('SOCIAL_ASSISTANCE')
+  //     expect(body.demand.category).toBe('SOCIAL_WORKER')
   //   })
 
   //   it('deve retornar erro para demanda inexistente', async () => {
@@ -370,7 +335,7 @@ describe('Demands Routes', () => {
   //         {
   //           title: 'Primeira Demanda',
   //           description: 'Primeira descrição',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'HIGH',
   //           status: 'PENDING',
   //           applicant_id: applicantId,
@@ -381,7 +346,7 @@ describe('Demands Routes', () => {
   //         {
   //           title: 'Segunda Demanda',
   //           description: 'Segunda descrição',
-  //           category: 'HEALTH',
+  //           category: 'NUTRITIONIST',
   //           priority: 'MEDIUM',
   //           status: 'IN_PROGRESS',
   //           applicant_id: applicantId,
@@ -415,7 +380,7 @@ describe('Demands Routes', () => {
   //         {
   //           title: 'Demanda Aberta',
   //           description: 'Descrição',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'HIGH',
   //           status: 'OPEN',
   //           applicant_id: applicantId,
@@ -426,7 +391,7 @@ describe('Demands Routes', () => {
   //         {
   //           title: 'Demanda Fechada',
   //           description: 'Descrição',
-  //           category: 'HEALTH',
+  //           category: 'NUTRITIONIST',
   //           priority: 'MEDIUM',
   //           status: 'CLOSED',
   //           applicant_id: applicantId,
@@ -461,7 +426,7 @@ describe('Demands Routes', () => {
   //         await testDb.db.insert(demands).values({
   //           title: `Demanda ${i}`,
   //           description: `Descrição ${i}`,
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'MEDIUM',
   //           status: 'OPEN',
   //           applicant_id: applicantId,
@@ -500,7 +465,7 @@ describe('Demands Routes', () => {
   //         .values({
   //           title: 'Título Original',
   //           description: 'Descrição original',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'LOW',
   //           status: 'OPEN',
   //           applicant_id: applicantId,
@@ -563,7 +528,7 @@ describe('Demands Routes', () => {
   //         .values({
   //           title: 'Título Original',
   //           description: 'Descrição original',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'LOW',
   //           status: 'OPEN',
   //           applicant_id: applicantId,
@@ -601,7 +566,7 @@ describe('Demands Routes', () => {
   //         .values({
   //           title: 'Título Original',
   //           description: 'Descrição original',
-  //           category: 'SOCIAL_ASSISTANCE',
+  //           category: 'SOCIAL_WORKER',
   //           priority: 'LOW',
   //           status: 'OPEN',
   //           applicant_id: applicantId,
@@ -645,7 +610,7 @@ describe('Demands Routes', () => {
           .values({
             title: 'Demanda de Teste',
             description: 'Descrição da demanda',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -672,7 +637,7 @@ describe('Demands Routes', () => {
       const body = JSON.parse(response.body)
       expect(body).toHaveProperty('demand')
       expect(body.demand.title).toBe('Demanda de Teste')
-      expect(body.demand.category).toBe('SOCIAL_ASSISTANCE')
+      expect(body.demand.category).toBe('SOCIAL_WORKER')
     })
 
     it('deve retornar erro para demanda inexistente', async () => {
@@ -698,7 +663,7 @@ describe('Demands Routes', () => {
           {
             title: 'Primeira Demanda',
             description: 'Primeira descrição',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -709,7 +674,7 @@ describe('Demands Routes', () => {
           {
             title: 'Segunda Demanda',
             description: 'Segunda descrição',
-            category: 'HEALTH',
+            category: 'NUTRITIONIST',
             priority: 'MEDIUM',
             status: 'IN_PROGRESS',
             applicant_id: applicantId,
@@ -743,7 +708,7 @@ describe('Demands Routes', () => {
           {
             title: 'Demanda Pendente',
             description: 'Descrição',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -754,7 +719,7 @@ describe('Demands Routes', () => {
           {
             title: 'Demanda Resolvida',
             description: 'Descrição',
-            category: 'HEALTH',
+            category: 'NUTRITIONIST',
             priority: 'MEDIUM',
             status: 'RESOLVED',
             applicant_id: applicantId,
@@ -793,7 +758,7 @@ describe('Demands Routes', () => {
           .values({
             title: 'Título Original',
             description: 'Descrição original',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'LOW',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -856,7 +821,7 @@ describe('Demands Routes', () => {
           .values({
             title: 'Título Original',
             description: 'Descrição original',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'LOW',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -869,7 +834,130 @@ describe('Demands Routes', () => {
         demandId = demand.id
       }
 
-      // Act - Atualiza apenas o status
+      // Act - Atualiza apenas o status (PENDING -> IN_PROGRESS é uma transição válida)
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          status: 'IN_PROGRESS',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demand')
+      expect(body.demand.status).toBe('IN_PROGRESS')
+      expect(body.demand.title).toBe('Título Original') // Mantém o título original
+    })
+
+    it('deve permitir atualizar status para BILLED quando status atual é RESOLVED', async () => {
+      // Arrange - Cria uma demanda com status RESOLVED
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Demanda Resolvida',
+            description: 'Descrição',
+            category: 'PSYCHOLOGIST',
+            priority: 'HIGH',
+            status: 'RESOLVED',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act - Atualiza para BILLED
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          status: 'BILLED',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body).toHaveProperty('demand')
+      expect(body.demand.status).toBe('BILLED')
+    })
+
+    it('deve impedir atualizar status para BILLED quando status atual não é RESOLVED', async () => {
+      // Arrange - Cria uma demanda com status PENDING
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Demanda Pendente',
+            description: 'Descrição',
+            category: 'PSYCHOLOGIST',
+            priority: 'HIGH',
+            status: 'PENDING',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act - Tenta atualizar para BILLED
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
+        headers: {
+          authorization: `Bearer ${authToken}`,
+        },
+        payload: {
+          status: 'BILLED',
+        },
+      })
+
+      // Assert
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.body)
+      expect(body.message).toContain('RESOLVED')
+    })
+
+    it('deve impedir atualizar status de uma demanda BILLED', async () => {
+      // Arrange - Cria uma demanda com status BILLED
+      let demandId: string
+      if (testDb.db) {
+        const [demand] = await testDb.db
+          .insert(demands)
+          .values({
+            title: 'Demanda Faturada',
+            description: 'Descrição',
+            category: 'PSYCHOLOGIST',
+            priority: 'HIGH',
+            status: 'BILLED',
+            applicant_id: applicantId,
+            unit_id: unitId,
+            created_by_member_name: 'Test User',
+            created_at: new Date(),
+          })
+          .returning()
+
+        demandId = demand.id
+      }
+
+      // Act - Tenta alterar o status
       const response = await app.inject({
         method: 'PATCH',
         url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
@@ -882,11 +970,9 @@ describe('Demands Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(400)
       const body = JSON.parse(response.body)
-      expect(body).toHaveProperty('demand')
-      expect(body.demand.status).toBe('RESOLVED')
-      expect(body.demand.title).toBe('Título Original') // Mantém o título original
+      expect(body.message).toContain('faturada')
     })
   })
 })

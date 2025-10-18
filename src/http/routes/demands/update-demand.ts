@@ -13,6 +13,10 @@ import {
 } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
+import { 
+  isValidStatusTransition, 
+  getStatusTransitionErrorMessage 
+} from '../../utils/validate-demand-status.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -94,6 +98,15 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       if (!demand) {
         throw new NotFoundError('Demanda não encontrada.')
+      }
+
+      // Validar transição de status se um novo status foi fornecido
+      if (updateData.status && updateData.status !== demand.status) {
+        if (!isValidStatusTransition(demand.status, updateData.status)) {
+          throw new BadRequestError(
+            getStatusTransitionErrorMessage(demand.status, updateData.status)
+          )
+        }
       }
 
       // Atualizar a demanda

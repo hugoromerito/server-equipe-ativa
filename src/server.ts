@@ -86,8 +86,17 @@ import {
   rejectInviteRoute,
 } from './http/routes/invites/index.ts'
 import {
+  createJobTitleRoute,
+  deleteJobTitleRoute,
+  getJobTitleRoute,
+  getJobTitlesRoute,
+  updateJobTitleRoute,
+} from './http/routes/job-titles/index.ts'
+import {
+  getAvailableMembersRoute,
   getMembersOrganizationRoute,
   getMembersUnitRoute,
+  updateMemberWorkingDaysRoute,
 } from './http/routes/members/index.ts'
 import {
   createOrganizationRoute,
@@ -312,6 +321,8 @@ async function createApp() {
     // Member routes
     app.register(getMembersOrganizationRoute),
     app.register(getMembersUnitRoute),
+    app.register(updateMemberWorkingDaysRoute),
+    app.register(getAvailableMembersRoute),
 
     // Invite routes
     app.register(acceptInviteRoute),
@@ -321,6 +332,13 @@ async function createApp() {
     app.register(getOrganizationInvitesRoute),
     app.register(getPendingInvitesRoute),
     app.register(rejectInviteRoute),
+
+    // Job Title routes
+    app.register(createJobTitleRoute),
+    app.register(getJobTitlesRoute),
+    app.register(getJobTitleRoute),
+    app.register(updateJobTitleRoute),
+    app.register(deleteJobTitleRoute),
 
     // Applicant routes
     app.register(createApplicantRoute),

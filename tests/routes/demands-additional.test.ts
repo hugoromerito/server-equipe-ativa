@@ -119,7 +119,7 @@ describe('Additional Demands Routes', () => {
           .values({
             title: 'Demanda de Teste',
             description: 'Descrição da demanda',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -146,7 +146,7 @@ describe('Additional Demands Routes', () => {
       const body = JSON.parse(response.body)
       expect(body).toHaveProperty('demand')
       expect(body.demand.title).toBe('Demanda de Teste')
-      expect(body.demand.category).toBe('SOCIAL_ASSISTANCE')
+      expect(body.demand.category).toBe('SOCIAL_WORKER')
     })
 
     it('deve retornar erro para demanda inexistente', async () => {
@@ -172,7 +172,7 @@ describe('Additional Demands Routes', () => {
           {
             title: 'Primeira Demanda',
             description: 'Primeira descrição',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -183,7 +183,7 @@ describe('Additional Demands Routes', () => {
           {
             title: 'Segunda Demanda',
             description: 'Segunda descrição',
-            category: 'HEALTH',
+            category: 'NUTRITIONIST',
             priority: 'MEDIUM',
             status: 'IN_PROGRESS',
             applicant_id: applicantId,
@@ -217,7 +217,7 @@ describe('Additional Demands Routes', () => {
           {
             title: 'Demanda Pendente',
             description: 'Descrição',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'HIGH',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -228,7 +228,7 @@ describe('Additional Demands Routes', () => {
           {
             title: 'Demanda Resolvida',
             description: 'Descrição',
-            category: 'HEALTH',
+            category: 'NUTRITIONIST',
             priority: 'MEDIUM',
             status: 'RESOLVED',
             applicant_id: applicantId,
@@ -267,7 +267,7 @@ describe('Additional Demands Routes', () => {
           .values({
             title: 'Título Original',
             description: 'Descrição original',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'LOW',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -330,7 +330,7 @@ describe('Additional Demands Routes', () => {
           .values({
             title: 'Título Original',
             description: 'Descrição original',
-            category: 'SOCIAL_ASSISTANCE',
+            category: 'SOCIAL_WORKER',
             priority: 'LOW',
             status: 'PENDING',
             applicant_id: applicantId,
@@ -343,7 +343,7 @@ describe('Additional Demands Routes', () => {
         demandId = demand.id
       }
 
-      // Act - Atualiza apenas o status
+      // Act - Atualiza apenas o status (PENDING -> IN_PROGRESS é uma transição válida)
       const response = await app.inject({
         method: 'PATCH',
         url: `/organizations/${organizationSlug}/units/${unitSlug}/demands/${demandId!}`,
@@ -351,7 +351,7 @@ describe('Additional Demands Routes', () => {
           authorization: `Bearer ${authToken}`,
         },
         payload: {
-          status: 'RESOLVED',
+          status: 'IN_PROGRESS',
         },
       })
 
@@ -359,7 +359,7 @@ describe('Additional Demands Routes', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
       expect(body).toHaveProperty('demand')
-      expect(body.demand.status).toBe('RESOLVED')
+      expect(body.demand.status).toBe('IN_PROGRESS')
       expect(body.demand.title).toBe('Título Original') // Mantém o título original
     })
   })

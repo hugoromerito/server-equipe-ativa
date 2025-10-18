@@ -29,6 +29,20 @@
       "when": 1760394143435,
       "tag": "0003_rapid_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1760809800000,
+      "tag": "0004_consolidated_enums_and_job_titles",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1760811309060,
+      "tag": "0005_chemical_newton_destine",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,5 @@
+ALTER TYPE "public"."demand_status" ADD VALUE 'BILLED';--> statement-breakpoint
+ALTER TABLE "demands" ALTER COLUMN "category" SET DATA TYPE text;--> statement-breakpoint
+DROP TYPE "public"."demand_category";--> statement-breakpoint
+CREATE TYPE "public"."demand_category" AS ENUM('SOCIAL_WORKER', 'PSYCHOMOTOR_PHYSIOTHERAPIST', 'SPEECH_THERAPIST', 'MUSIC_THERAPIST', 'NEUROPSYCHOPEDAGOGUE', 'NEUROPSYCHOLOGIST', 'NUTRITIONIST', 'PSYCHOLOGIST', 'PSYCHOMOTRICIAN', 'PSYCHOPEDAGOGUE', 'THERAPIST', 'OCCUPATIONAL_THERAPIST');--> statement-breakpoint
+ALTER TABLE "demands" ALTER COLUMN "category" SET DATA TYPE "public"."demand_category" USING "category"::"public"."demand_category";
