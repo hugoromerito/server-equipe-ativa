@@ -138,9 +138,18 @@ async function createApp() {
   // CORS configurado com segurança
   await app.register(fastifyCors, {
     origin: (origin, callback) => {
-      const allowedOrigins = env.NODE_ENV === 'production' 
-        ? ['https://your-production-domain.com'] 
-        : ['http://localhost:3000', 'http://localhost:3333', 'http://localhost:5173']
+      // Em produção, permitir todos os origins (ou especifique os domínios permitidos)
+      if (env.NODE_ENV === 'production') {
+        callback(null, true)
+        return
+      }
+      
+      // Em desenvolvimento, permitir localhost
+      const allowedOrigins = [
+        'http://localhost:3000', 
+        'http://localhost:3333', 
+        'http://localhost:5173'
+      ]
       
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true)
