@@ -627,6 +627,30 @@ Authorization: {{tokenAuth}}
 @date = 2025-10-20
 @time = 13:00
 
+# @name atualizar_cargo_membro
+# Atribui um cargo/função a um membro
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/{{memberId}}/job-title
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "jobTitleId": "{{jobTitleId}}"
+}
+
+###
+
+# @name remover_cargo_membro
+# Remove o cargo de um membro (define como null)
+PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/{{memberId}}/job-title
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "jobTitleId": null
+}
+
+###
+
 # @name atualizar_dias_trabalho
 # Define em quais dias da semana o profissional trabalha
 # 0=Domingo, 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado
