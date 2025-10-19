@@ -1,11 +1,13 @@
 import { z } from 'zod/v4'
+import { weekdayZodEnum } from '../../db/schema/enums.ts'
 
 /**
  * Schema para validação de dias da semana
- * 0 = Domingo, 1 = Segunda, 2 = Terça, 3 = Quarta, 4 = Quinta, 5 = Sexta, 6 = Sábado
+ * Aceita nomes dos dias: DOMINGO, SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO
  */
 export const workingDaysSchema = z
-  .array(z.number().int().min(0).max(6))
+  .array(weekdayZodEnum)
+  .nullable()
   .optional()
   .refine(
     (days) => {
@@ -27,14 +29,27 @@ export const updateMemberWorkingDaysBodySchema = z.object({
 })
 
 /**
- * Dias da semana em português para referência
+ * Mapeamento de dias da semana para número (para compatibilidade com datas)
  */
-export const WEEKDAYS = {
-  0: 'Domingo',
-  1: 'Segunda-feira',
-  2: 'Terça-feira',
-  3: 'Quarta-feira',
-  4: 'Quinta-feira',
-  5: 'Sexta-feira',
-  6: 'Sábado',
+export const WEEKDAY_TO_NUMBER = {
+  DOMINGO: 0,
+  SEGUNDA: 1,
+  TERCA: 2,
+  QUARTA: 3,
+  QUINTA: 4,
+  SEXTA: 5,
+  SABADO: 6,
+} as const
+
+/**
+ * Mapeamento de número para nome do dia
+ */
+export const NUMBER_TO_WEEKDAY = {
+  0: 'DOMINGO',
+  1: 'SEGUNDA',
+  2: 'TERCA',
+  3: 'QUARTA',
+  4: 'QUINTA',
+  5: 'SEXTA',
+  6: 'SABADO',
 } as const

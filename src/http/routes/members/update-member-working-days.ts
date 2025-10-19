@@ -19,7 +19,7 @@ export const updateMemberWorkingDaysRoute: FastifyPluginCallbackZod = (app) => {
         tags: ['Members'],
         summary: 'Atualizar dias de trabalho do membro',
         description:
-          'Atualiza os dias da semana em que o membro trabalha (0=Domingo, 1=Segunda, ..., 6=Sábado)',
+          'Atualiza os dias da semana em que o membro trabalha (DOMINGO, SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO)',
         security: [{ bearerAuth: [] }],
         params: z.object({
           slug: z.string(),
