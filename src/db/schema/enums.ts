@@ -45,6 +45,16 @@ export const ATTACHMENT_TYPE_VALUES = [
   'OTHER',
 ] as const
 
+export const WEEKDAY_VALUES = [
+  'DOMINGO',
+  'SEGUNDA',
+  'TERCA',
+  'QUARTA',
+  'QUINTA',
+  'SEXTA',
+  'SABADO',
+] as const
+
 // Enums para Drizzle (Database)
 export const roleEnum = pgEnum('role', ROLE_VALUES)
 export const accountProviderEnum = pgEnum(
@@ -67,6 +77,8 @@ export const attachmentTypeEnum = pgEnum(
   ATTACHMENT_TYPE_VALUES
 )
 
+export const weekdayEnum = pgEnum('weekday', WEEKDAY_VALUES)
+
 // Enums para Zod (Validation)
 export const roleZodEnum = z.enum(ROLE_VALUES)
 export const accountProviderZodEnum = z.enum(ACCOUNT_PROVIDER_VALUES)
@@ -74,6 +86,7 @@ export const tokenTypeZodEnum = z.enum(TOKEN_TYPE_VALUES)
 export const demandStatusZodEnum = z.enum(DEMAND_STATUS_VALUES)
 export const demandCategoryZodEnum = z.enum(DEMAND_CATEGORY_VALUES)
 export const demandPriorityZodEnum = z.enum(DEMAND_PRIORITY_VALUES)
+export const weekdayZodEnum = z.enum(WEEKDAY_VALUES)
 
 // Types
 export type RoleType = z.infer<typeof roleZodEnum>
@@ -82,3 +95,4 @@ export type TokenTypeType = z.infer<typeof tokenTypeZodEnum>
 export type DemandStatusType = z.infer<typeof demandStatusZodEnum>
 export type DemandCategoryType = z.infer<typeof demandCategoryZodEnum>
 export type DemandPriorityType = z.infer<typeof demandPriorityZodEnum>
+export type WeekdayType = z.infer<typeof weekdayZodEnum>

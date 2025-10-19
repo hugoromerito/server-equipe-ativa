@@ -1,7 +1,6 @@
 import {
   boolean,
   index,
-  integer,
   pgTable,
   text,
   timestamp,
@@ -9,7 +8,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { users } from './auth.ts'
-import { roleEnum } from './enums.ts'
+import { roleEnum, weekdayEnum } from './enums.ts'
 import { jobTitles } from './job-titles.ts'
 
 export const organizations = pgTable('organizations', {
@@ -55,7 +54,7 @@ export const members = pgTable(
     organization_role: roleEnum().default('CLERK').notNull(),
     unit_role: roleEnum(),
     job_title_id: uuid().references(() => jobTitles.id, { onDelete: 'set null' }), // Cargo/função específica
-    working_days: integer().array(), // Array de dias da semana: 0=Domingo, 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado
+    working_days: weekdayEnum().array(), // Array de dias da semana: DOMINGO, SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO
     user_id: uuid()
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
