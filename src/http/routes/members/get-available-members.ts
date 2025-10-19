@@ -151,7 +151,8 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
         if (!member.workingDays || member.workingDays.length === 0) {
           return true
         }
-        return member.workingDays.includes(dayOfWeek)
+        const weekdayName = getWeekdayName(dayOfWeek) as 'DOMINGO' | 'SEGUNDA' | 'TERCA' | 'QUARTA' | 'QUINTA' | 'SEXTA' | 'SABADO'
+        return member.workingDays.includes(weekdayName)
       })
 
       // Buscar agendamentos conflitantes (mesma data e hora)

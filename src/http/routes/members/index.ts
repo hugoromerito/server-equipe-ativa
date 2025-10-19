@@ -1,5 +1,6 @@
 export { getAvailableMembersRoute } from './get-available-members.ts'
 export { getMembersOrganizationRoute } from './get-members-organization.ts'
 export { getMembersUnitRoute } from './get-members-unit.ts'
+export { getScheduleAvailabilityRoute } from './get-schedule-availability.ts'
 export { updateMemberJobTitleRoute } from './update-member-job-title.ts'
 export { updateMemberWorkingDaysRoute } from './update-member-working-days.ts'

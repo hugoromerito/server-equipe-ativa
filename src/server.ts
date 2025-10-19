@@ -96,6 +96,7 @@ import {
   getAvailableMembersRoute,
   getMembersOrganizationRoute,
   getMembersUnitRoute,
+  getScheduleAvailabilityRoute,
   updateMemberJobTitleRoute,
   updateMemberWorkingDaysRoute,
 } from './http/routes/members/index.ts'
@@ -334,6 +335,7 @@ async function createApp() {
     app.register(updateMemberJobTitleRoute),
     app.register(updateMemberWorkingDaysRoute),
     app.register(getAvailableMembersRoute),
+    app.register(getScheduleAvailabilityRoute),
 
     // Invite routes
     app.register(acceptInviteRoute),
