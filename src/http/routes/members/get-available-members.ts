@@ -8,6 +8,7 @@ import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
+import { NUMBER_TO_WEEKDAY } from '../../schemas/members.ts'
 
 /**
  * Retorna o dia da semana (0-6) para uma data no formato YYYY-MM-DD
@@ -16,6 +17,13 @@ import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + 'T12:00:00') // Usar meio-dia para evitar problemas de timezone
   return date.getDay()
+}
+
+/**
+ * Converte o número do dia da semana para o nome do enum
+ */
+function getWeekdayName(dayNumber: number): string {
+  return NUMBER_TO_WEEKDAY[dayNumber as keyof typeof NUMBER_TO_WEEKDAY]
 }
 
 export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
