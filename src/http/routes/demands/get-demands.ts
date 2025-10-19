@@ -79,25 +79,39 @@ function buildFilterConditions(filters: {
 
 // Helper function to get order by clause
 function getOrderByClause(sortBy: string, sortOrder: string) {
-  const orderDirection = sortOrder === 'asc' ? asc : desc
+  const orderDirection = sortOrder === 'asc' ? asc : desc
 
-  switch (sortBy) {
-    case 'created_at':
-      return [orderDirection(demands.created_at)]
-    case 'updated_at':
-      return [orderDirection(demands.updated_at)]
-    case 'priority':
-      return [orderDirection(demands.priority)]
-    case 'status':
-      return [orderDirection(demands.status)]
-    case 'scheduled_datetime':
-      // Para ordenação por data e hora combinadas, ordenar primeiro por data, depois por hora
-      return sortOrder === 'asc' 
-        ? [asc(demands.scheduled_date), asc(demands.scheduled_time)]
-        : [desc(demands.scheduled_date), desc(demands.scheduled_time)]
-    default:
-      return [orderDirection(demands.created_at)]
-  }
+  switch (sortBy) {
+    case 'created_at':
+      return [orderDirection(demands.created_at)]
+    case 'updated_at':
+      return [orderDirection(demands.updated_at)]
+    case 'priority':
+      return [orderDirection(demands.priority)]
+    case 'status':
+      return [orderDirection(demands.status)]
+    
+    case 'scheduled_datetime':
+      // Workaround para o problema de tipagem do 'nullsLast'
+      // Usamos o helper 'sql' para construir a ordenação
+      const order = sortOrder === 'asc' ? sql`asc nulls last` : sql`desc nulls last`
+      
+      // O desempate pode usar o 'asc'/'desc' normal
+      const tieBreaker = sortOrder === 'asc' 
+        ? asc(demands.created_at) 
+        : desc(demands.created_at)
+
+      return [
+        sql`${demands.scheduled_date} ${order}`,
+        sql`${demands.scheduled_time} ${order}`,
+        tieBreaker, // Adiciona created_at como desempate
+      ]
+
+    default:
+      // O Zod já garante que o 'sort_by' default é 'scheduled_datetime',
+      // mas é bom ter o fallback original.
+      return [orderDirection(demands.created_at)]
+  }
 }
 
 // Helper function to create base query with joins
@@ -287,7 +301,6 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       const [totalResult, demandsResult] = await Promise.all([
         createCountQuery(conditions),
         createBaseQuery(conditions)
-                // ... rest of the query builder chain ...
           .orderBy(...orderBy)
           .limit(limit)
           .offset((page - 1) * limit),
