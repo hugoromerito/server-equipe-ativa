@@ -222,12 +222,33 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
           throw new BadRequestError('Data final não pode ser determinada.')
         }
         
+        // Consulta específica para verificar se existe demanda no dia 20/10 às 08:00 para Hugo
+        const specificCheck = await db
+          .select({
+            responsibleId: demands.responsible_id,
+            scheduledDate: demands.scheduled_date,
+            scheduledTime: demands.scheduled_time,
+            demandId: demands.id,
+            status: demands.status,
+          })
+          .from(demands)
+          .where(
+            and(
+              eq(demands.responsible_id, '0b5a1eb2-2d73-49f7-8541-62c8d20ca96a'),
+              eq(demands.scheduled_date, '2025-10-20'),
+              eq(demands.scheduled_time, '08:00')
+            )
+          )
+        
+        console.log('Specific check for Hugo 2025-10-20 08:00:', specificCheck)
+
         const allConflicts = await db
           .select({
             responsibleId: demands.responsible_id,
             scheduledDate: demands.scheduled_date,
             scheduledTime: demands.scheduled_time,
             demandId: demands.id,
+            status: demands.status,
           })
           .from(demands)
           .where(
@@ -237,12 +258,19 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
               isNotNull(demands.responsible_id),
               inArray(demands.status, ['PENDING', 'IN_PROGRESS'])
             )
-          )      // Log para debug
+          )      // Log para debug detalhado
+      console.log('=== DEBUG CONFLICTS ===')
       console.log('Query conflicts result:', {
         conflictCount: allConflicts.length,
         startDate,
         endDate,
-        sampleConflict: allConflicts[0]
+        filteredMemberIds: filteredMembers.map(m => m.id),
+        allConflicts: allConflicts.map(c => ({
+          responsibleId: c.responsibleId,
+          date: c.scheduledDate,
+          time: c.scheduledTime,
+          demandId: c.demandId
+        }))
       })
 
       // Criar mapa de conflitos para acesso rápido
@@ -251,8 +279,12 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
         if (conflict.responsibleId && conflict.scheduledDate && conflict.scheduledTime && conflict.demandId) {
           const key = `${conflict.responsibleId}-${conflict.scheduledDate}-${conflict.scheduledTime}`
           conflictMap.set(key, conflict.demandId)
+          console.log(`Conflict mapped: ${key} -> ${conflict.demandId}`)
         }
       })
+      
+      console.log('Total conflicts mapped:', conflictMap.size)
+      console.log('Conflict keys:', Array.from(conflictMap.keys()))
 
       // Construir grade de disponibilidade para cada membro
       const membersWithAvailability = filteredMembers.map(member => {
