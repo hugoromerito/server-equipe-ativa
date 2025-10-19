@@ -35,7 +35,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
         tags: ['Members'],
         summary: 'Buscar membros disponíveis',
         description:
-          'Retorna membros disponíveis para atendimento em uma data/hora específica, considerando categoria profissional e agendamentos existentes',
+          'Retorna membros disponíveis para atendimento em uma data/hora específica. Pode filtrar por categoria profissional (enum) ou por ID específico do cargo (UUID).',
         security: [{ bearerAuth: [] }],
         params: z.object({
           slug: z.string(),
@@ -49,6 +49,10 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
             .string()
             .regex(/^\d{2}:\d{2}$/, 'Hora deve estar no formato HH:MM'),
           category: z.enum(DEMAND_CATEGORY_VALUES).optional(),
+          jobTitleId: z
+            .string()
+            .uuid('ID do cargo deve ser um UUID válido')
+            .optional(),
         }),
         response: withAuthErrorResponses({
           200: z.object({
@@ -71,6 +75,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
               dayOfWeek: z.number(),
               dayOfWeekName: z.string(),
               category: z.string().optional(),
+              jobTitleId: z.string().optional(),
             }),
           }),
         }),
@@ -79,7 +84,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
     async (request, reply) => {
       const userId = await request.getCurrentUserId()
       const { slug, unitSlug } = request.params
-      const { date, time, category } = request.query
+      const { date, time, category, jobTitleId } = request.query
 
       // Verificar permissões
       await request.getUserMembership(slug, unitSlug)
@@ -126,9 +131,15 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
 
       const allMembers = await query
 
-      // Filtrar membros por categoria se especificado
+      // Filtrar membros por categoria ou job title ID se especificado
       let filteredByCategory = allMembers
-      if (category) {
+      
+      if (jobTitleId) {
+        // Filtrar por job title ID específico
+        filteredByCategory = allMembers.filter(
+          (member) => member.jobTitleId === jobTitleId
+        )
+      } else if (category) {
         // Buscar job titles que correspondem à categoria
         const relevantJobTitles = await db
           .select({ id: jobTitles.id })
@@ -156,6 +167,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
       })
 
       // Buscar agendamentos conflitantes (mesma data e hora)
+      // Excluir demandas canceladas/rejeitadas
       const conflictingDemands = await db
         .select({
           responsibleId: demands.responsible_id,
@@ -165,7 +177,8 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
           and(
             eq(demands.scheduled_date, date),
             eq(demands.scheduled_time, time),
-            sql`${demands.responsible_id} IS NOT NULL`
+            sql`${demands.responsible_id} IS NOT NULL`,
+            sql`${demands.status} NOT IN ('REJECTED', 'CANCELLED')`
           )
         )
 
@@ -195,6 +208,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
           dayOfWeek,
           dayOfWeekName: dayNames[dayOfWeek],
           category,
+          jobTitleId,
         },
       })
     }
