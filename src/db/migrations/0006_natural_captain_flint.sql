@@ -1,0 +1,2 @@
+CREATE TYPE "public"."weekday" AS ENUM('DOMINGO', 'SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO');--> statement-breakpoint
+ALTER TABLE "members" ALTER COLUMN "working_days" SET DATA TYPE "public"."weekday"[] USING "working_days"::"public"."weekday"[];
