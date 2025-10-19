@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gte, ilike, or, type SQL, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
@@ -13,6 +14,8 @@ import {
 import {
   applicants,
   demands,
+  jobTitles,
+  members,
   organizations,
   units,
   users,
@@ -31,6 +34,7 @@ function buildFilterConditions(filters: {
   created_at?: Date
   updated_at?: Date
   search?: string
+  responsibleId?: string
 }) {
   const conditions = [
     eq(organizations.slug, filters.organizationSlug),
@@ -46,6 +50,9 @@ function buildFilterConditions(filters: {
   }
   if (filters.priority) {
     conditions.push(eq(demands.priority, filters.priority))
+  }
+  if (filters.responsibleId) {
+    conditions.push(eq(demands.responsible_id, filters.responsibleId))
   }
   if (filters.created_at) {
     conditions.push(gte(demands.created_at, filters.created_at))
@@ -74,18 +81,29 @@ function buildFilterConditions(filters: {
 function getOrderByClause(sortBy: string, sortOrder: string) {
   const orderDirection = sortOrder === 'asc' ? asc : desc
 
-  const orderByMap = {
-    created_at: orderDirection(demands.created_at),
-    updated_at: orderDirection(demands.updated_at),
-    priority: orderDirection(demands.priority),
-    status: orderDirection(demands.status),
+  switch (sortBy) {
+    case 'created_at':
+      return orderDirection(demands.created_at)
+    case 'updated_at':
+      return orderDirection(demands.updated_at)
+    case 'priority':
+      return orderDirection(demands.priority)
+    case 'status':
+      return orderDirection(demands.status)
+    case 'scheduled_datetime':
+      // Para ordenação por data e hora combinadas, usar apenas um campo ordenado
+      return sortOrder === 'asc' ? asc(demands.scheduled_date) : desc(demands.scheduled_date)
+    default:
+      return orderDirection(demands.created_at)
   }
-
-  return orderByMap[sortBy as keyof typeof orderByMap]
 }
 
 // Helper function to create base query with joins
 function createBaseQuery(conditions: SQL<unknown>[]) {
+  // Criar aliases para tabelas que serão usadas múltiplas vezes
+  const responsibleUsers = alias(users, 'responsible_users')
+  const responsibleJobTitles = alias(jobTitles, 'responsible_job_titles')
+
   return db
     .select({
       id: demands.id,
@@ -102,12 +120,20 @@ function createBaseQuery(conditions: SQL<unknown>[]) {
       author: users.name,
       created_by_member_name: demands.created_by_member_name,
       applicant_name: applicants.name,
+      // Informações do responsável
+      responsible_name: responsibleUsers.name,
+      responsible_email: responsibleUsers.email,
+      responsible_job_title: responsibleJobTitles.name,
     })
     .from(demands)
     .innerJoin(units, eq(demands.unit_id, units.id))
     .innerJoin(organizations, eq(units.organization_id, organizations.id))
     .leftJoin(users, eq(demands.owner_id, users.id))
     .leftJoin(applicants, eq(demands.applicant_id, applicants.id))
+    // Joins para buscar informações do responsável
+    .leftJoin(members, eq(demands.responsible_id, members.id))
+    .leftJoin(responsibleUsers, eq(members.user_id, responsibleUsers.id))
+    .leftJoin(responsibleJobTitles, eq(members.job_title_id, responsibleJobTitles.id))
     .where(and(...conditions))
 }
 
@@ -161,13 +187,14 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
           priority: demandPriorityZodEnum.optional(),
           created_at: z.coerce.date().optional(),
           updated_at: z.coerce.date().optional(),
+          responsibleId: z.string().uuid('ID do responsável deve ser um UUID válido').optional(),
 
           // Busca global (independente da página)
           search: z.string().min(1).optional(),
 
           // Ordenação
           sort_by: z
-            .enum(['created_at', 'updated_at', 'priority', 'status'])
+            .enum(['created_at', 'updated_at', 'priority', 'status', 'scheduled_datetime'])
             .default('created_at'),
           sort_order: z.enum(['asc', 'desc']).default('desc'),
         }),
@@ -189,6 +216,13 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
                 author: z.string().nullable(),
                 applicant_name: z.string().nullable(),
                 created_by_member_name: z.string(),
+                // Informações do responsável
+                responsible: z.object({
+                  id: z.string().uuid(),
+                  name: z.string(),
+                  email: z.string(),
+                  job_title: z.string().nullable(),
+                }).nullable(),
               })
             ),
             pagination: z.object({
@@ -259,8 +293,32 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       const total = Number(totalResult[0]?.count || 0)
       const pagination = calculatePagination(page, limit, total)
 
+      // Transform data to include responsible object
+      const transformedDemands = demandsResult.map(demand => ({
+        id: demand.id,
+        title: demand.title,
+        description: demand.description,
+        status: demand.status,
+        priority: demand.priority,
+        category: demand.category,
+        scheduled_date: demand.scheduled_date,
+        scheduled_time: demand.scheduled_time,
+        responsible_id: demand.responsible_id,
+        created_at: demand.created_at,
+        updated_at: demand.updated_at,
+        author: demand.author,
+        applicant_name: demand.applicant_name,
+        created_by_member_name: demand.created_by_member_name,
+        responsible: demand.responsible_id ? {
+          id: demand.responsible_id,
+          name: demand.responsible_name || '',
+          email: demand.responsible_email || '',
+          job_title: demand.responsible_job_title,
+        } : null,
+      }))
+
       return {
-        demands: demandsResult,
+        demands: transformedDemands,
         pagination,
       }
     }
