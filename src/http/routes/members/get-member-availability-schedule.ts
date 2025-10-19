@@ -1,4 +1,4 @@
-import { and, eq, sql, gte, lte, isNotNull, notInArray } from 'drizzle-orm'
+import { and, eq, sql, gte, lte, isNotNull, inArray } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
@@ -235,7 +235,7 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
               gte(demands.scheduled_date, startDate),
               lte(demands.scheduled_date, endDate),
               isNotNull(demands.responsible_id),
-              notInArray(demands.status, ['REJECTED', 'CANCELLED'])
+              inArray(demands.status, ['PENDING', 'IN_PROGRESS'])
             )
           )      // Log para debug
       console.log('Query conflicts result:', {

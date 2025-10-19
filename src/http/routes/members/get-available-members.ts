@@ -178,7 +178,7 @@ export const getAvailableMembersRoute: FastifyPluginCallbackZod = (app) => {
             eq(demands.scheduled_date, date),
             eq(demands.scheduled_time, time),
             sql`${demands.responsible_id} IS NOT NULL`,
-            sql`${demands.status} NOT IN ('REJECTED', 'CANCELLED')`
+            sql`${demands.status} IN ('PENDING', 'IN_PROGRESS')`
           )
         )
 
