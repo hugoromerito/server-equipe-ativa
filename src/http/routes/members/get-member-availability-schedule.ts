@@ -2,7 +2,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
-import { demands, jobTitles, members, units, users } from '../../../db/schema/index.ts'
+import { demands, jobTitles, members, organizations, units, users } from '../../../db/schema/index.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
@@ -34,11 +34,10 @@ function generateTimeSlots(startHour: number, endHour: number, intervalMinutes: 
  */
 function generateDateRange(startDate: string, days: number): string[] {
   const dates: string[] = []
-  const start = new Date(startDate + 'T00:00:00Z')
+  const start = new Date(startDate + 'T12:00:00.000Z') // Usar meio-dia para evitar problemas de timezone
   
   for (let i = 0; i < days; i++) {
-    const date = new Date(start)
-    date.setUTCDate(start.getUTCDate() + i)
+    const date = new Date(start.getTime() + (i * 24 * 60 * 60 * 1000)) // Adicionar milissegundos
     dates.push(date.toISOString().split('T')[0])
   }
   
@@ -148,40 +147,54 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
       },
     },
     async (request, reply) => {
-      const { slug, unitSlug } = request.params
-      const { 
-        startDate, 
-        days, 
-        startHour, 
-        endHour, 
-        intervalMinutes,
-        jobTitleId 
-      } = request.query
+      try {
+        const { slug, unitSlug } = request.params
+        const { 
+          startDate, 
+          days, 
+          startHour, 
+          endHour, 
+          intervalMinutes,
+          jobTitleId 
+        } = request.query
 
-      // Validar horas
-      if (startHour >= endHour) {
-        throw new BadRequestError('Hora inicial deve ser menor que hora final.')
-      }
+        // Validar horas
+        if (startHour >= endHour) {
+          throw new BadRequestError('Hora inicial deve ser menor que hora final.')
+        }
 
       // Verificar permissões
       await request.getUserMembership(slug, unitSlug)
 
-      // Buscar unidade
+      // Buscar unidade na organização
       const [unit] = await db
         .select({ id: units.id })
         .from(units)
-        .where(eq(units.slug, unitSlug))
+        .innerJoin(organizations, eq(units.organization_id, organizations.id))
+        .where(
+          and(
+            eq(units.slug, unitSlug),
+            eq(organizations.slug, slug)
+          )
+        )
         .limit(1)
 
       if (!unit) {
         throw new NotFoundError('Unidade não encontrada.')
       }
 
-      // Gerar datas e horários
-      const dates = generateDateRange(startDate, days)
-      const timeSlots = generateTimeSlots(startHour, endHour, intervalMinutes)
-
-      // Buscar membros da unidade
+        // Gerar datas e horários
+        const dates = generateDateRange(startDate, days)
+        const timeSlots = generateTimeSlots(startHour, endHour, intervalMinutes)
+        
+        // Validar se as datas foram geradas corretamente
+        if (dates.length === 0) {
+          throw new BadRequestError('Erro ao gerar datas para o período especificado.')
+        }
+        
+        if (timeSlots.length === 0) {
+          throw new BadRequestError('Erro ao gerar horários para o período especificado.')
+        }      // Buscar membros da unidade
       let membersQuery = db
         .select({
           id: members.id,
@@ -203,26 +216,28 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
         ? allMembers.filter(member => member.jobTitleId === jobTitleId)
         : allMembers
 
-      // Buscar todos os agendamentos do período
-      const endDate = dates[dates.length - 1]
-      const allConflicts = await db
-        .select({
-          responsibleId: demands.responsible_id,
-          scheduledDate: demands.scheduled_date,
-          scheduledTime: demands.scheduled_time,
-          demandId: demands.id,
-        })
-        .from(demands)
-        .where(
-          and(
-            sql`${demands.scheduled_date} >= ${startDate}`,
-            sql`${demands.scheduled_date} <= ${endDate}`,
-            sql`${demands.responsible_id} IS NOT NULL`,
-            sql`${demands.status} NOT IN ('REJECTED', 'CANCELLED')`
-          )
-        )
-
-      // Criar mapa de conflitos para acesso rápido
+        // Buscar todos os agendamentos do período
+        const endDate = dates[dates.length - 1]
+        if (!endDate) {
+          throw new BadRequestError('Data final não pode ser determinada.')
+        }
+        
+        const allConflicts = await db
+          .select({
+            responsibleId: demands.responsible_id,
+            scheduledDate: demands.scheduled_date,
+            scheduledTime: demands.scheduled_time,
+            demandId: demands.id,
+          })
+          .from(demands)
+          .where(
+            and(
+              sql`${demands.scheduled_date} >= ${startDate}`,
+              sql`${demands.scheduled_date} <= ${endDate}`,
+              sql`${demands.responsible_id} IS NOT NULL`,
+              sql`${demands.status} NOT IN ('REJECTED')`
+            )
+          )      // Criar mapa de conflitos para acesso rápido
       const conflictMap = new Map<string, string>() // key: "memberId-date-time", value: demandId
       allConflicts.forEach(conflict => {
         if (conflict.responsibleId && conflict.scheduledDate && conflict.scheduledTime) {
@@ -274,22 +289,34 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
         }
       })
 
-      return reply.status(200).send({
-        schedule: {
-          dates,
-          timeSlots,
-          members: membersWithAvailability,
-        },
-        metadata: {
-          startDate,
-          days,
-          startHour,
-          endHour,
-          intervalMinutes,
-          totalSlots: dates.length * timeSlots.length,
-          jobTitleId,
-        },
-      })
+        return reply.status(200).send({
+          schedule: {
+            dates,
+            timeSlots,
+            members: membersWithAvailability,
+          },
+          metadata: {
+            startDate,
+            days,
+            startHour,
+            endHour,
+            intervalMinutes,
+            totalSlots: dates.length * timeSlots.length,
+            jobTitleId,
+          },
+        })
+      } catch (error) {
+        // Log detalhado do erro para debug
+        console.error('Error in getMemberAvailabilityScheduleRoute:', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          params: request.params,
+          query: request.query,
+        })
+        
+        // Re-throw para que o error handler global processe
+        throw error
+      }
     }
   )
 }
