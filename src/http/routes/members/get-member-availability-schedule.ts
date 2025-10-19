@@ -45,6 +45,18 @@ function generateDateRange(startDate: string, days: number): string[] {
 }
 
 /**
+ * Normaliza horário para comparação (remove segundos se existir)
+ */
+function normalizeTime(time: string | null): string {
+  if (!time) return ''
+  // Se tem formato HH:MM:SS, converter para HH:MM
+  if (time.length === 8 && time.includes(':')) {
+    return time.substring(0, 5) // Pega apenas HH:MM
+  }
+  return time
+}
+
+/**
  * Verifica se um membro trabalha em um dia específico
  */
 function isWorkingDay(workingDays: WeekdayType[] | null, dateString: string): boolean {
@@ -277,9 +289,11 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
       const conflictMap = new Map<string, string>() // key: "memberId-date-time", value: demandId
       allConflicts.forEach(conflict => {
         if (conflict.responsibleId && conflict.scheduledDate && conflict.scheduledTime && conflict.demandId) {
-          const key = `${conflict.responsibleId}-${conflict.scheduledDate}-${conflict.scheduledTime}`
+          // Normalizar horário para comparação (HH:MM:SS -> HH:MM)
+          const normalizedTime = normalizeTime(conflict.scheduledTime)
+          const key = `${conflict.responsibleId}-${conflict.scheduledDate}-${normalizedTime}`
           conflictMap.set(key, conflict.demandId)
-          console.log(`Conflict mapped: ${key} -> ${conflict.demandId}`)
+          console.log(`Conflict mapped: ${key} -> ${conflict.demandId} (original time: ${conflict.scheduledTime})`)
         }
       })
       
