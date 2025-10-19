@@ -195,8 +195,8 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
           // Ordenação
           sort_by: z
             .enum(['created_at', 'updated_at', 'priority', 'status', 'scheduled_datetime'])
-            .default('created_at'),
-          sort_order: z.enum(['asc', 'desc']).default('desc'),
+            .default('scheduled_datetime'),
+          sort_order: z.enum(['asc', 'desc']).default('asc'),
         }),
         response: {
           200: z.object({
