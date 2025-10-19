@@ -235,7 +235,7 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
               sql`${demands.scheduled_date} >= ${startDate}`,
               sql`${demands.scheduled_date} <= ${endDate}`,
               sql`${demands.responsible_id} IS NOT NULL`,
-              sql`${demands.status} NOT IN ('REJECTED')`
+              sql`${demands.status} NOT IN ('REJECTED', 'CANCELLED')`
             )
           )      // Criar mapa de conflitos para acesso rápido
       const conflictMap = new Map<string, string>() // key: "memberId-date-time", value: demandId
