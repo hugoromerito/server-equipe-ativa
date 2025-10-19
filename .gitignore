@@ -36,3 +36,7 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Drizzle generated files
+src/db/migrations/schema.ts
+src/db/migrations/relations.ts
