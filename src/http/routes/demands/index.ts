@@ -1,3 +1,4 @@
+export { assignMemberToDemandRoute } from './assign-member.ts'
 export { createDemandRoute } from './create-demand.ts'
 export { getDemandRoute } from './get-demand.ts'
 export { getDemandsRoute } from './get-demands.ts'

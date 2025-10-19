@@ -19,6 +19,7 @@ import { logger } from '../../../utils/logger.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { classifyDemandAi } from '../../utils/classify-demand-ai.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
+import { validateMemberScheduling, checkWorkingDay } from '../../utils/schedule-validation.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { InternalServerError } from '../_errors/internal-server-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -211,7 +212,10 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
         // Se responsibleId for fornecido, verificar se o membro existe na unidade
         if (responsibleId) {
           const [responsibleMember] = await db
-            .select()
+            .select({
+              id: members.id,
+              workingDays: members.working_days,
+            })
             .from(members)
             .where(
               and(
@@ -224,11 +228,42 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
           if (!responsibleMember) {
             throw new BadRequestError('Profissional responsável não encontrado nesta unidade.')
           }
+
+          // Se há agendamento, validar disponibilidade
+          if (scheduledDate && scheduledTime) {
+            // Validar se não há conflitos de horário
+            const validation = await validateMemberScheduling(
+              responsibleId,
+              responsibleMember.workingDays,
+              scheduledDate,
+              scheduledTime
+            )
+
+            if (!validation.available) {
+              if (validation.reason === 'schedule-conflict') {
+                throw new BadRequestError(
+                  `O profissional já possui um agendamento neste horário (${scheduledDate} às ${scheduledTime}).`
+                )
+              }
+              if (validation.reason === 'not-working-day') {
+                throw new BadRequestError('O profissional não trabalha neste dia da semana.')
+              }
+            }
+          }
         }
 
-        // Classificar demanda com IA
-        logger.info(`Classificando demanda com IA: "${title}"`)
-        const classificationResult = await classifyDemandAi({ description })
+        // Classificar demanda com IA (skip em testes)
+        let classificationResult: { category: string; priority: string }
+        if (process.env.NODE_ENV === 'test') {
+          // Mock para testes - usa valores padrão
+          classificationResult = {
+            category: 'PSICOLOGIA',
+            priority: 'MEDIA'
+          }
+        } else {
+          logger.info(`Classificando demanda com IA: "${title}"`)
+          classificationResult = await classifyDemandAi({ description })
+        }
         const finalPriority = classificationResult.priority as DemandPriorityType
         const finalCategory = classificationResult.category as DemandCategoryType
 

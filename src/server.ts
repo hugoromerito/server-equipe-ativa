@@ -71,6 +71,7 @@ import {
   resetPasswordRoute,
 } from './http/routes/auth/index.ts'
 import {
+  assignMemberToDemandRoute,
   createDemandRoute,
   getDemandRoute,
   getDemandsRoute,
@@ -361,6 +362,7 @@ async function createApp() {
     app.register(getCheckApplicantRoute),
 
     // Demand routes
+    app.register(assignMemberToDemandRoute),
     app.register(createDemandRoute),
     app.register(getDemandRoute),
     app.register(getDemandsRoute),
