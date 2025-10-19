@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, sql, gte, lte, isNotNull, notInArray } from 'drizzle-orm'
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
@@ -124,12 +124,12 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
                 name: z.string(),
                 email: z.string(),
                 jobTitle: z.string().nullable(),
-                jobTitleId: z.string().nullable(),
+                jobTitleId: z.string().uuid().nullable(),
                 workingDays: z.array(z.string()).nullable(),
                 availability: z.record(z.string(), z.record(z.string(), z.object({
                   available: z.boolean(),
                   reason: z.enum(['available', 'not-working-day', 'conflict', 'outside-hours']),
-                  conflictingDemandId: z.string().optional(),
+                  conflictingDemandId: z.string().uuid().optional(),
                 }))),
               })),
             }),
@@ -232,15 +232,23 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
           .from(demands)
           .where(
             and(
-              sql`${demands.scheduled_date} >= ${startDate}`,
-              sql`${demands.scheduled_date} <= ${endDate}`,
-              sql`${demands.responsible_id} IS NOT NULL`,
-              sql`${demands.status} NOT IN ('REJECTED', 'CANCELLED')`
+              gte(demands.scheduled_date, startDate),
+              lte(demands.scheduled_date, endDate),
+              isNotNull(demands.responsible_id),
+              notInArray(demands.status, ['REJECTED', 'CANCELLED'])
             )
-          )      // Criar mapa de conflitos para acesso rápido
+          )      // Log para debug
+      console.log('Query conflicts result:', {
+        conflictCount: allConflicts.length,
+        startDate,
+        endDate,
+        sampleConflict: allConflicts[0]
+      })
+
+      // Criar mapa de conflitos para acesso rápido
       const conflictMap = new Map<string, string>() // key: "memberId-date-time", value: demandId
       allConflicts.forEach(conflict => {
-        if (conflict.responsibleId && conflict.scheduledDate && conflict.scheduledTime) {
+        if (conflict.responsibleId && conflict.scheduledDate && conflict.scheduledTime && conflict.demandId) {
           const key = `${conflict.responsibleId}-${conflict.scheduledDate}-${conflict.scheduledTime}`
           conflictMap.set(key, conflict.demandId)
         }
@@ -280,11 +288,11 @@ export const getMemberAvailabilityScheduleRoute: FastifyPluginCallbackZod = (app
 
         return {
           id: member.id,
-          name: member.name,
-          email: member.email,
-          jobTitle: member.jobTitleName,
-          jobTitleId: member.jobTitleId,
-          workingDays: member.workingDays,
+          name: member.name || '',
+          email: member.email || '',
+          jobTitle: member.jobTitleName || null,
+          jobTitleId: member.jobTitleId || null,
+          workingDays: member.workingDays || null,
           availability
         }
       })
