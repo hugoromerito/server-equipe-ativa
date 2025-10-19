@@ -91,27 +91,26 @@ function getOrderByClause(sortBy: string, sortOrder: string) {
     case 'status':
       return [orderDirection(demands.status)]
     
-    case 'scheduled_datetime':
-      // Workaround para o problema de tipagem do 'nullsLast'
-      // Usamos o helper 'sql' para construir a ordenação
-      const order = sortOrder === 'asc' ? sql`asc nulls last` : sql`desc nulls last`
-      
-      // O desempate pode usar o 'asc'/'desc' normal
-      const tieBreaker = sortOrder === 'asc' 
-        ? asc(demands.created_at) 
-        : desc(demands.created_at)
-
-      return [
-        sql`${demands.scheduled_date} ${order}`,
-        sql`${demands.scheduled_time} ${order}`,
-        tieBreaker, // Adiciona created_at como desempate
-      ]
-
-    default:
-      // O Zod já garante que o 'sort_by' default é 'scheduled_datetime',
-      // mas é bom ter o fallback original.
-      return [orderDirection(demands.created_at)]
-  }
+    case 'scheduled_datetime':
+      // Ordenar primeiro por data, depois por hora
+      if (sortOrder === 'asc') {
+        return [
+          asc(demands.scheduled_date),
+          asc(demands.scheduled_time),
+          asc(demands.created_at) // desempate
+        ]
+      } else {
+        return [
+          desc(demands.scheduled_date),
+          desc(demands.scheduled_time),
+          desc(demands.created_at) // desempate
+        ]
+      }
+    default:
+      // O Zod já garante que o 'sort_by' default é 'scheduled_datetime',
+      // mas é bom ter o fallback original.
+      return [orderDirection(demands.created_at)]
+  }
 }
 
 // Helper function to create base query with joins
