@@ -83,18 +83,20 @@ function getOrderByClause(sortBy: string, sortOrder: string) {
 
   switch (sortBy) {
     case 'created_at':
-      return orderDirection(demands.created_at)
+      return [orderDirection(demands.created_at)]
     case 'updated_at':
-      return orderDirection(demands.updated_at)
+      return [orderDirection(demands.updated_at)]
     case 'priority':
-      return orderDirection(demands.priority)
+      return [orderDirection(demands.priority)]
     case 'status':
-      return orderDirection(demands.status)
+      return [orderDirection(demands.status)]
     case 'scheduled_datetime':
-      // Para ordenação por data e hora combinadas, usar apenas um campo ordenado
-      return sortOrder === 'asc' ? asc(demands.scheduled_date) : desc(demands.scheduled_date)
+      // Para ordenação por data e hora combinadas, ordenar primeiro por data, depois por hora
+      return sortOrder === 'asc' 
+        ? [asc(demands.scheduled_date), asc(demands.scheduled_time)]
+        : [desc(demands.scheduled_date), desc(demands.scheduled_time)]
     default:
-      return orderDirection(demands.created_at)
+      return [orderDirection(demands.created_at)]
   }
 }
 
@@ -285,7 +287,8 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       const [totalResult, demandsResult] = await Promise.all([
         createCountQuery(conditions),
         createBaseQuery(conditions)
-          .orderBy(orderBy)
+                // ... rest of the query builder chain ...
+          .orderBy(...orderBy)
           .limit(limit)
           .offset((page - 1) * limit),
       ])
