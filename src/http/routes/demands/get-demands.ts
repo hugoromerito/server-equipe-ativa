@@ -41,7 +41,6 @@ function buildFilterConditions(filters: {
     eq(units.slug, filters.unitSlug),
   ]
 
-  // Apply basic filters
   if (filters.category) {
     conditions.push(eq(demands.category, filters.category))
   }
@@ -61,7 +60,6 @@ function buildFilterConditions(filters: {
     conditions.push(gte(demands.updated_at, filters.updated_at))
   }
 
-  // Apply search condition
   if (filters.search) {
     const searchTerm = `%${filters.search}%`
     const searchCondition = or(
@@ -78,82 +76,76 @@ function buildFilterConditions(filters: {
 }
 
 // Helper function to get order by clause
-function getOrderByClause(sortBy: string, sortOrder: string) {
+function getOrderByClause(sortBy: string, sortOrder: string): SQL<unknown>[] {
   const orderDirection = sortOrder === 'asc' ? asc : desc
 
   switch (sortBy) {
     case 'created_at':
       return [orderDirection(demands.created_at)]
+    
     case 'updated_at':
       return [orderDirection(demands.updated_at)]
+    
     case 'priority':
       return [orderDirection(demands.priority)]
+    
     case 'status':
       return [orderDirection(demands.status)]
     
     case 'scheduled_datetime':
-      // Ordenar primeiro por status (prioridade customizada), depois por data e hora
-      // Prioridade de status: IN_PROGRESS > PENDING > RESOLVED > BILLED > REJECTED
+      // Ordenação por status (prioridade) + data + hora
+      const statusPriority = sql`CASE ${demands.status}
+        WHEN 'IN_PROGRESS' THEN 1
+        WHEN 'PENDING' THEN 2
+        WHEN 'RESOLVED' THEN 3
+        WHEN 'BILLED' THEN 4
+        WHEN 'REJECTED' THEN 5
+        ELSE 6
+      END`
+      
       if (sortOrder === 'asc') {
         return [
-          sql`CASE ${demands.status}
-            WHEN 'IN_PROGRESS' THEN 1
-            WHEN 'PENDING' THEN 2
-            WHEN 'RESOLVED' THEN 3
-            WHEN 'BILLED' THEN 4
-            WHEN 'REJECTED' THEN 5
-            ELSE 6
-          END`,
-          asc(demands.scheduled_date),
-          asc(demands.scheduled_time)
+          statusPriority,
+          sql`${demands.scheduled_date} ASC NULLS LAST`,
+          sql`${demands.scheduled_time} ASC NULLS LAST`
         ]
       } else {
         return [
-          sql`CASE ${demands.status}
-            WHEN 'IN_PROGRESS' THEN 1
-            WHEN 'PENDING' THEN 2
-            WHEN 'RESOLVED' THEN 3
-            WHEN 'BILLED' THEN 4
-            WHEN 'REJECTED' THEN 5
-            ELSE 6
-          END`,
-          desc(demands.scheduled_date),
-          desc(demands.scheduled_time)
+          statusPriority,
+          sql`${demands.scheduled_date} DESC NULLS LAST`,
+          sql`${demands.scheduled_time} DESC NULLS LAST`
         ]
       }
+    
     default:
-      // Comportamento padrão: ordenação por status, data e hora agendada
+      // Comportamento padrão: ordenação por status + data/hora agendada
+      const defaultStatusPriority = sql`CASE ${demands.status}
+        WHEN 'IN_PROGRESS' THEN 1
+        WHEN 'PENDING' THEN 2
+        WHEN 'RESOLVED' THEN 3
+        WHEN 'BILLED' THEN 4
+        WHEN 'REJECTED' THEN 5
+        ELSE 6
+      END`
+      
       if (sortOrder === 'asc') {
         return [
-          sql`CASE ${demands.status}
-            WHEN 'IN_PROGRESS' THEN 1
-            WHEN 'PENDING' THEN 2
-            WHEN 'RESOLVED' THEN 3
-            WHEN 'BILLED' THEN 4
-            WHEN 'REJECTED' THEN 5
-            ELSE 6
-          END`,
-          asc(demands.scheduled_date),
-          asc(demands.scheduled_time)
+          defaultStatusPriority,
+          sql`${demands.scheduled_date} ASC NULLS LAST`,
+          sql`${demands.scheduled_time} ASC NULLS LAST`
+        ]
+      } else {
+        return [
+          defaultStatusPriority,
+          sql`${demands.scheduled_date} DESC NULLS LAST`,
+          sql`${demands.scheduled_time} DESC NULLS LAST`
         ]
       }
-
-      return [
-        sql`CASE ${demands.status}
-          WHEN 'IN_PROGRESS' THEN 1
-          WHEN 'PENDING' THEN 2
-          WHEN 'RESOLVED' THEN 3
-          WHEN 'BILLED' THEN 4
-          WHEN 'REJECTED' THEN 5
-          ELSE 6
-        END`,
-        desc(demands.scheduled_date),
-        desc(demands.scheduled_time)
-      ]
   }
-}// Helper function to create base query with joins
+}
+
+// Helper function to create base query with joins
 function createBaseQuery(conditions: SQL<unknown>[]) {
-  // Criar aliases para tabelas que serão usadas múltiplas vezes
   const responsibleUsers = alias(users, 'responsible_users')
   const responsibleJobTitles = alias(jobTitles, 'responsible_job_titles')
 
@@ -173,7 +165,6 @@ function createBaseQuery(conditions: SQL<unknown>[]) {
       author: users.name,
       created_by_member_name: demands.created_by_member_name,
       applicant_name: applicants.name,
-      // Informações do responsável
       responsible_name: responsibleUsers.name,
       responsible_email: responsibleUsers.email,
       responsible_job_title: responsibleJobTitles.name,
@@ -183,7 +174,6 @@ function createBaseQuery(conditions: SQL<unknown>[]) {
     .innerJoin(organizations, eq(units.organization_id, organizations.id))
     .leftJoin(users, eq(demands.owner_id, users.id))
     .leftJoin(applicants, eq(demands.applicant_id, applicants.id))
-    // Joins para buscar informações do responsável
     .leftJoin(members, eq(demands.responsible_id, members.id))
     .leftJoin(responsibleUsers, eq(members.user_id, responsibleUsers.id))
     .leftJoin(responsibleJobTitles, eq(members.job_title_id, responsibleJobTitles.id))
@@ -230,22 +220,15 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
           unitSlug: z.string().min(1),
         }),
         querystring: z.object({
-          // Paginação
           page: z.coerce.number().int().min(1).default(1),
           limit: z.coerce.number().int().min(1).max(100).default(20),
-
-          // Filtros
           category: demandCategoryZodEnum.optional(),
           status: demandStatusZodEnum.optional(),
           priority: demandPriorityZodEnum.optional(),
           created_at: z.coerce.date().optional(),
           updated_at: z.coerce.date().optional(),
           responsibleId: z.string().uuid('ID do responsável deve ser um UUID válido').optional(),
-
-          // Busca global (independente da página)
           search: z.string().min(1).optional(),
-
-          // Ordenação
           sort_by: z
             .enum(['created_at', 'updated_at', 'priority', 'status', 'scheduled_datetime'])
             .default('scheduled_datetime'),
@@ -269,7 +252,6 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
                 author: z.string().nullable(),
                 applicant_name: z.string().nullable(),
                 created_by_member_name: z.string(),
-                // Informações do responsável
                 responsible: z.object({
                   id: z.string().uuid(),
                   name: z.string(),
@@ -301,14 +283,10 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         created_at,
         updated_at,
         search,
-        sort_by: raw_sort_by,
-        sort_order: raw_sort_order,
+        sort_by,
+        sort_order,
         responsibleId,
       } = request.query
-
-      // Garantir valores padrão locais para evitar dependência do Zod em runtime
-      const sort_by = raw_sort_by || 'scheduled_datetime'
-      const sort_order = raw_sort_order || 'asc'
 
       // Authorization validation
       const userId = await request.getCurrentUserId()
@@ -324,7 +302,7 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         )
       }
 
-      // Build conditions using helper function
+      // Build conditions
       const conditions = buildFilterConditions({
         organizationSlug,
         unitSlug,
@@ -338,9 +316,8 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       })
 
       // Get order by clause
-      console.log('sort_by received:', sort_by, 'sort_order:', sort_order)
+      console.log('sort_by:', sort_by, 'sort_order:', sort_order)
       const orderBy = getOrderByClause(sort_by, sort_order)
-      console.log('orderBy generated:', orderBy)
 
       // Execute queries in parallel
       const [totalResult, demandsResult] = await Promise.all([
@@ -354,9 +331,7 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       const total = Number(totalResult[0]?.count || 0)
       const pagination = calculatePagination(page, limit, total)
 
-      // Transform data to include responsible object
-      // Normalizamos scheduled_date e scheduled_time como strings para evitar
-      // que o JSON.stringify/cliente aplique conversão de timezone em Date objects.
+      // Transform data
       const transformedDemands = demandsResult.map(demand => ({
         id: demand.id,
         title: demand.title,
@@ -365,16 +340,14 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         priority: demand.priority,
         category: demand.category,
         scheduled_date: demand.scheduled_date ?
-          // Se for Date-like (possui toISOString), formatar como YYYY-MM-DD; se já for string, manter
           (typeof (demand.scheduled_date as any)?.toISOString === 'function'
             ? ((demand.scheduled_date as unknown) as Date).toISOString().slice(0, 10)
             : String(demand.scheduled_date))
           : null,
         scheduled_time: demand.scheduled_time ?
-          // Normalizar para HH:MM (assume stored as 'HH:MM:SS' ou 'HH:MM')
           (typeof demand.scheduled_time === 'string'
-            ? demand.scheduled_time.slice(0,5)
-            : String(demand.scheduled_time).slice(0,5))
+            ? demand.scheduled_time.slice(0, 5)
+            : String(demand.scheduled_time).slice(0, 5))
           : null,
         responsible_id: demand.responsible_id,
         created_at: demand.created_at,
