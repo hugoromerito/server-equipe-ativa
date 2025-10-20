@@ -79,53 +79,79 @@ function buildFilterConditions(filters: {
 
 // Helper function to get order by clause
 function getOrderByClause(sortBy: string, sortOrder: string) {
-  const orderDirection = sortOrder === 'asc' ? asc : desc
+  const orderDirection = sortOrder === 'asc' ? asc : desc
 
-  switch (sortBy) {
-    case 'created_at':
-      return [orderDirection(demands.created_at)]
-    case 'updated_at':
-      return [orderDirection(demands.updated_at)]
-    case 'priority':
-      return [orderDirection(demands.priority)]
-    case 'status':
-      return [orderDirection(demands.status)]
-    
+  switch (sortBy) {
+    case 'created_at':
+      return [orderDirection(demands.created_at)]
+    case 'updated_at':
+      return [orderDirection(demands.updated_at)]
+    case 'priority':
+      return [orderDirection(demands.priority)]
+    case 'status':
+      return [orderDirection(demands.status)]
+    
     case 'scheduled_datetime':
-      // Ordenar primeiro por data, depois por hora
+      // Ordenar primeiro por status (prioridade customizada), depois por data e hora
+      // Prioridade de status: IN_PROGRESS > PENDING > RESOLVED > BILLED > REJECTED
       if (sortOrder === 'asc') {
         return [
+          sql`CASE ${demands.status}
+            WHEN 'IN_PROGRESS' THEN 1
+            WHEN 'PENDING' THEN 2
+            WHEN 'RESOLVED' THEN 3
+            WHEN 'BILLED' THEN 4
+            WHEN 'REJECTED' THEN 5
+            ELSE 6
+          END`,
           asc(demands.scheduled_date),
-          asc(demands.scheduled_time),
-          asc(demands.created_at) // desempate
+          asc(demands.scheduled_time)
         ]
       } else {
         return [
+          sql`CASE ${demands.status}
+            WHEN 'IN_PROGRESS' THEN 1
+            WHEN 'PENDING' THEN 2
+            WHEN 'RESOLVED' THEN 3
+            WHEN 'BILLED' THEN 4
+            WHEN 'REJECTED' THEN 5
+            ELSE 6
+          END`,
           desc(demands.scheduled_date),
-          desc(demands.scheduled_time),
-          desc(demands.created_at) // desempate
+          desc(demands.scheduled_time)
         ]
       }
     default:
-      // Se por algum motivo o valor de sortBy não casar com os cases acima,
-      // usamos o comportamento padrão esperado: ordenação por data e hora agendada.
+      // Comportamento padrão: ordenação por status, data e hora agendada
       if (sortOrder === 'asc') {
         return [
+          sql`CASE ${demands.status}
+            WHEN 'IN_PROGRESS' THEN 1
+            WHEN 'PENDING' THEN 2
+            WHEN 'RESOLVED' THEN 3
+            WHEN 'BILLED' THEN 4
+            WHEN 'REJECTED' THEN 5
+            ELSE 6
+          END`,
           asc(demands.scheduled_date),
-          asc(demands.scheduled_time),
-          asc(demands.created_at),
+          asc(demands.scheduled_time)
         ]
       }
 
       return [
+        sql`CASE ${demands.status}
+          WHEN 'IN_PROGRESS' THEN 1
+          WHEN 'PENDING' THEN 2
+          WHEN 'RESOLVED' THEN 3
+          WHEN 'BILLED' THEN 4
+          WHEN 'REJECTED' THEN 5
+          ELSE 6
+        END`,
         desc(demands.scheduled_date),
-        desc(demands.scheduled_time),
-        desc(demands.created_at),
+        desc(demands.scheduled_time)
       ]
   }
-}
-
-// Helper function to create base query with joins
+}// Helper function to create base query with joins
 function createBaseQuery(conditions: SQL<unknown>[]) {
   // Criar aliases para tabelas que serão usadas múltiplas vezes
   const responsibleUsers = alias(users, 'responsible_users')
