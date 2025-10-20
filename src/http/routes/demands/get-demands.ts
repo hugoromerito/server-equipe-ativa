@@ -107,9 +107,21 @@ function getOrderByClause(sortBy: string, sortOrder: string) {
         ]
       }
     default:
-      // O Zod já garante que o 'sort_by' default é 'scheduled_datetime',
-      // mas é bom ter o fallback original.
-      return [orderDirection(demands.created_at)]
+      // Se por algum motivo o valor de sortBy não casar com os cases acima,
+      // usamos o comportamento padrão esperado: ordenação por data e hora agendada.
+      if (sortOrder === 'asc') {
+        return [
+          asc(demands.scheduled_date),
+          asc(demands.scheduled_time),
+          asc(demands.created_at),
+        ]
+      }
+
+      return [
+        desc(demands.scheduled_date),
+        desc(demands.scheduled_time),
+        desc(demands.created_at),
+      ]
   }
 }
 
@@ -263,9 +275,14 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         created_at,
         updated_at,
         search,
-        sort_by,
-        sort_order,
+        sort_by: raw_sort_by,
+        sort_order: raw_sort_order,
+        responsibleId,
       } = request.query
+
+      // Garantir valores padrão locais para evitar dependência do Zod em runtime
+      const sort_by = raw_sort_by || 'scheduled_datetime'
+      const sort_order = raw_sort_order || 'asc'
 
       // Authorization validation
       const userId = await request.getCurrentUserId()
@@ -291,10 +308,13 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         created_at,
         updated_at,
         search,
+        responsibleId,
       })
 
       // Get order by clause
+      console.log('sort_by received:', sort_by, 'sort_order:', sort_order)
       const orderBy = getOrderByClause(sort_by, sort_order)
+      console.log('orderBy generated:', orderBy)
 
       // Execute queries in parallel
       const [totalResult, demandsResult] = await Promise.all([
@@ -309,6 +329,8 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       const pagination = calculatePagination(page, limit, total)
 
       // Transform data to include responsible object
+      // Normalizamos scheduled_date e scheduled_time como strings para evitar
+      // que o JSON.stringify/cliente aplique conversão de timezone em Date objects.
       const transformedDemands = demandsResult.map(demand => ({
         id: demand.id,
         title: demand.title,
@@ -316,8 +338,18 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         status: demand.status,
         priority: demand.priority,
         category: demand.category,
-        scheduled_date: demand.scheduled_date,
-        scheduled_time: demand.scheduled_time,
+        scheduled_date: demand.scheduled_date ?
+          // Se for Date-like (possui toISOString), formatar como YYYY-MM-DD; se já for string, manter
+          (typeof (demand.scheduled_date as any)?.toISOString === 'function'
+            ? ((demand.scheduled_date as unknown) as Date).toISOString().slice(0, 10)
+            : String(demand.scheduled_date))
+          : null,
+        scheduled_time: demand.scheduled_time ?
+          // Normalizar para HH:MM (assume stored as 'HH:MM:SS' ou 'HH:MM')
+          (typeof demand.scheduled_time === 'string'
+            ? demand.scheduled_time.slice(0,5)
+            : String(demand.scheduled_time).slice(0,5))
+          : null,
         responsible_id: demand.responsible_id,
         created_at: demand.created_at,
         updated_at: demand.updated_at,
