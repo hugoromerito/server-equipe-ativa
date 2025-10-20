@@ -76,67 +76,45 @@ function buildFilterConditions(filters: {
 }
 
 // Helper function to get order by clause
-function getOrderByClause(sortBy: string, sortOrder: string): SQL<unknown>[] {
-  const orderDirection = sortOrder === 'asc' ? asc : desc
+function getOrderByClause(sortBy: string = 'scheduled_datetime', sortOrder: string = 'asc'): SQL<unknown>[] {
+  console.log('getOrderByClause chamado com:', { sortBy, sortOrder })
+  
+  const isAsc = sortOrder === 'asc'
+  const statusPriority = sql`CASE ${demands.status}
+    WHEN 'IN_PROGRESS' THEN 1
+    WHEN 'PENDING' THEN 2
+    WHEN 'RESOLVED' THEN 3
+    WHEN 'BILLED' THEN 4
+    WHEN 'REJECTED' THEN 5
+    ELSE 6
+  END`
 
   switch (sortBy) {
     case 'created_at':
-      return [orderDirection(demands.created_at)]
+      return isAsc ? [asc(demands.created_at)] : [desc(demands.created_at)]
     
     case 'updated_at':
-      return [orderDirection(demands.updated_at)]
+      return isAsc ? [asc(demands.updated_at)] : [desc(demands.updated_at)]
     
     case 'priority':
-      return [orderDirection(demands.priority)]
+      return isAsc ? [asc(demands.priority)] : [desc(demands.priority)]
     
     case 'status':
-      return [orderDirection(demands.status)]
+      return isAsc ? [asc(demands.status)] : [desc(demands.status)]
     
     case 'scheduled_datetime':
-      // Ordenação por status (prioridade) + data + hora
-      const statusPriority = sql`CASE ${demands.status}
-        WHEN 'IN_PROGRESS' THEN 1
-        WHEN 'PENDING' THEN 2
-        WHEN 'RESOLVED' THEN 3
-        WHEN 'BILLED' THEN 4
-        WHEN 'REJECTED' THEN 5
-        ELSE 6
-      END`
-      
-      if (sortOrder === 'asc') {
-        return [
-          statusPriority,
-          sql`${demands.scheduled_date} ASC NULLS LAST`,
-          sql`${demands.scheduled_time} ASC NULLS LAST`
-        ]
-      } else {
-        return [
-          statusPriority,
-          sql`${demands.scheduled_date} DESC NULLS LAST`,
-          sql`${demands.scheduled_time} DESC NULLS LAST`
-        ]
-      }
-    
     default:
-      // Comportamento padrão: ordenação por status + data/hora agendada
-      const defaultStatusPriority = sql`CASE ${demands.status}
-        WHEN 'IN_PROGRESS' THEN 1
-        WHEN 'PENDING' THEN 2
-        WHEN 'RESOLVED' THEN 3
-        WHEN 'BILLED' THEN 4
-        WHEN 'REJECTED' THEN 5
-        ELSE 6
-      END`
-      
-      if (sortOrder === 'asc') {
+      // SEMPRE usar ordenação por status + data + hora (padrão)
+      console.log('Aplicando ordenação scheduled_datetime com order:', sortOrder)
+      if (isAsc) {
         return [
-          defaultStatusPriority,
+          statusPriority,
           sql`${demands.scheduled_date} ASC NULLS LAST`,
           sql`${demands.scheduled_time} ASC NULLS LAST`
         ]
       } else {
         return [
-          defaultStatusPriority,
+          statusPriority,
           sql`${demands.scheduled_date} DESC NULLS LAST`,
           sql`${demands.scheduled_time} DESC NULLS LAST`
         ]
@@ -274,19 +252,23 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
     },
     async (request) => {
       const { organizationSlug, unitSlug } = request.params
+      const query = request.query
+      
+      // Garantir valores padrão explicitamente
+      const page = query.page ?? 1
+      const limit = query.limit ?? 20
+      const sort_by = query.sort_by ?? 'scheduled_datetime'
+      const sort_order = query.sort_order ?? 'asc'
+      
       const {
-        page,
-        limit,
         category,
         status,
         priority,
         created_at,
         updated_at,
         search,
-        sort_by,
-        sort_order,
         responsibleId,
-      } = request.query
+      } = query
 
       // Authorization validation
       const userId = await request.getCurrentUserId()
@@ -316,8 +298,10 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       })
 
       // Get order by clause
-      console.log('sort_by:', sort_by, 'sort_order:', sort_order)
+      console.log('sort_by FINAL:', sort_by, 'sort_order FINAL:', sort_order)
+      console.log('query completa:', JSON.stringify(query))
       const orderBy = getOrderByClause(sort_by, sort_order)
+      console.log('orderBy length:', orderBy.length)
 
       // Execute queries in parallel
       const [totalResult, demandsResult] = await Promise.all([

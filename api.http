@@ -629,15 +629,7 @@ Authorization: {{tokenAuth}}
 
 # @name atualizar_cargo_membro
 # Atribui um cargo/função a um membro
-PATCH {{baseUrl}}/organizations/{{organizationSlug}}/members/{{memberId}}/job-title
-Authorization: {{tokenAuth}}
-Content-Type: application/json
 
-{
-  "jobTitleId": "{{jobTitleId}}"
-}
-
-###
 
 # @name remover_cargo_membro
 # Remove o cargo de um membro (define como null)
