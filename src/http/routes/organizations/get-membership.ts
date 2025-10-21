@@ -30,18 +30,29 @@ export const getMembershipRoute: FastifyPluginCallbackZod = (app) => {
         ),
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const { slug } = request.params
       
-      const { membership } = await request.getUserMembership(slug)
+      try {
+        const { membership } = await request.getUserMembership(slug)
 
-      return {
-        membership: {
-          id: membership.id,
-          organization_role: membership.organization_role,
-          organizationId: membership.organization_id,
-          userId: membership.user_id,
-        },
+        const response = {
+          membership: {
+            id: membership.id,
+            organization_role: membership.organization_role,
+            organizationId: membership.organization_id,
+            userId: membership.user_id,
+          },
+        }
+
+        return response
+      } catch (error) {
+        request.log.error({
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          slug,
+        }, 'Erro ao obter membership')
+        throw error
       }
     }
   )
