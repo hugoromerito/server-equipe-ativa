@@ -32,22 +32,16 @@ export const getMembershipRoute: FastifyPluginCallbackZod = (app) => {
     },
     async (request) => {
       const { slug } = request.params
-      const userId = await request.getCurrentUserId()
       
-      try {
-        const { membership } = await request.getUserMembership(slug)
+      const { membership } = await request.getUserMembership(slug)
 
-        return {
-          membership: {
-            id: membership.id,
-            organization_role: roleZodEnum.parse(membership.organization_role),
-            organizationId: membership.organization_id,
-            userId: membership.user_id,
-          },
-        }
-      } catch (error) {
-        // Se não encontrou membership, é porque não faz parte da organização
-        throw new ForbiddenError('Usuário não possui acesso a esta organização.')
+      return {
+        membership: {
+          id: membership.id,
+          organization_role: membership.organization_role,
+          organizationId: membership.organization_id,
+          userId: membership.user_id,
+        },
       }
     }
   )
