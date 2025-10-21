@@ -6,7 +6,7 @@
 @applicantId = d53b4d5f-57ca-4b9a-b911-2ac3721a2c37
 @demandId = 123e4567-e89b-12d3-a456-426614174000
 @inviteId = 123e4567-e89b-12d3-a456-426614174000
-@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiZTgyMjExZC0wZWI4LTQzYzYtODg0OS03M2RiMmExNGE4MzEiLCJpYXQiOjE3NTU0NDgyNDgsImV4cCI6MTc1NjA1MzA0OH0.F4VI2yND6dmoLzM8LMdQPOqoRMesqAAOlKa4vxVuYhw
+@tokenAuth = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiY2RhNGJlNi1mYzMxLTQ5NGMtYjQwZC03YTUzYWFlNTlkNTEiLCJpYXQiOjE3NjEwNjI2NTksImV4cCI6MTc2MTY2NzQ1OX0.G6yLKu7EubLfIJEd7CNacUP1p0gB1HmAdRj9KtXASXI
 
 ###############################################################################
 # 🔐 AUTENTICAÇÃO
@@ -805,3 +805,44 @@ Content-Type: application/json
 {
   "workingDays": null
 }
+
+###
+
+###############################################################################
+# 📄 GERAÇÃO DE PDF - FOLHA DE PONTO
+###############################################################################
+
+# CENÁRIO 1: Gerar PDF de folha de ponto do mês atual
+# Gera PDF com todos os dias do mês, finais de semana destacados em cinza
+# @name gerar_pdf_mes_atual
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/{{memberId}}/timesheet-pdf
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 2: Gerar PDF de folha de ponto de um mês específico
+# Exemplo: Outubro de 2025
+# @name gerar_pdf_outubro
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/{{memberId}}/timesheet-pdf?month=10&year=2025
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 3: Gerar PDF para Janeiro (útil para planejamento do próximo ano)
+# @name gerar_pdf_janeiro
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/{{memberId}}/timesheet-pdf?month=1&year=2026
+Authorization: {{tokenAuth}}
+
+###
+
+# CENÁRIO 4: Gerar PDF do mês passado
+# @name gerar_pdf_mes_passado
+GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members/{{memberId}}/timesheet-pdf?month=9&year=2025
+Authorization: {{tokenAuth}}
+
+###
+
+# Exemplo de variável para memberId
+# Você pode obter o memberId através da rota de listagem de membros:
+# GET {{baseUrl}}/organizations/{{organizationSlug}}/units/{{unitSlug}}/members
+@memberId = a1b2c3d4-e5f6-7890-abcd-ef1234567890

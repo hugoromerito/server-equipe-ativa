@@ -94,6 +94,7 @@ import {
   updateJobTitleRoute,
 } from './http/routes/job-titles/index.ts'
 import {
+  generateMemberTimesheetPDFRoute,
   getAvailableMembersRoute,
   getMemberAvailabilityScheduleRoute,
   getMembersOrganizationRoute,
@@ -353,6 +354,7 @@ async function createApp() {
     app.register(getAvailableMembersRoute),
     app.register(getMemberAvailabilityScheduleRoute),
     app.register(getScheduleAvailabilityRoute),
+    app.register(generateMemberTimesheetPDFRoute),
 
     // Invite routes
     app.register(acceptInviteRoute),
