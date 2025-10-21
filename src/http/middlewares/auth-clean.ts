@@ -72,8 +72,7 @@ export const auth = fastifyPlugin(async (app: FastifyInstance) => {
       .where(
         and(
           eq(organizations.slug, organizationSlug),
-          eq(members.user_id, userId),
-          eq(organizations.should_attach_users_by_domain, false)
+          eq(members.user_id, userId)
         )
       )
 
@@ -91,8 +90,7 @@ export const auth = fastifyPlugin(async (app: FastifyInstance) => {
             and(
               eq(organizations.slug, organizationSlug),
               eq(units.slug, unitSlug),
-              eq(members.user_id, userId),
-              eq(organizations.should_attach_users_by_domain, false)
+              eq(members.user_id, userId)
             )
           )
       : baseQuery
