@@ -20,9 +20,9 @@ export const attachments = pgTable('attachments', {
   mime_type: text('mime_type').notNull(),
   type: attachmentTypeEnum().default('DOCUMENT').notNull(),
   encrypted: boolean().default(false).notNull(),
-  organization_id: uuid('organization_id')
-    .notNull()
-    .references(() => organizations.id, { onDelete: 'cascade' }),
+  organization_id: uuid('organization_id').references(() => organizations.id, {
+    onDelete: 'cascade',
+  }),
   user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   applicant_id: uuid('applicant_id').references(() => applicants.id, {
     onDelete: 'cascade',

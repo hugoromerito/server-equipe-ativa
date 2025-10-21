@@ -10,34 +10,29 @@ import { BadRequestError } from '../_errors/bad-request-error.ts'
 
 export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
-    '/organizations/:organizationSlug/users/:userId/avatar',
+    '/users/:userId/avatar',
     {
       preHandler: [authPreHandler],
       schema: {
         tags: ['Attachments'],
         summary: 'Upload de avatar do usuário',
+        description: 'Faz upload do avatar do usuário autenticado',
         security: [{ bearerAuth: [] }],
         consumes: ['multipart/form-data'],
         params: z.object({
-          organizationSlug: z.string(),
-          userId: z.uuid(),
+          userId: z.string().uuid(),
         }),
         response: {
           201: z.object({
-            attachmentId: z.uuid(),
-            url: z.string(),
+            attachmentId: z.string().uuid(),
+            url: z.string().url(),
           }),
         },
       },
     },
     async (request, reply) => {
-      const { organizationSlug, userId } = request.params as {
-        organizationSlug: string
-        userId: string
-      }
+      const { userId } = request.params
       const currentUserId = await request.getCurrentUserId()
-
-      const { organization } = await request.getUserMembership(organizationSlug)
 
       // Verificar se o usuário pode alterar o avatar (apenas o próprio usuário)
       if (currentUserId !== userId) {
@@ -52,11 +47,7 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         .select()
         .from(attachments)
         .where(
-          and(
-            eq(attachments.user_id, userId),
-            eq(attachments.type, 'AVATAR'),
-            eq(attachments.organization_id, organization.id)
-          )
+          and(eq(attachments.user_id, userId), eq(attachments.type, 'AVATAR'))
         )
 
       if (existingAvatars.length > 0) {
@@ -84,8 +75,7 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
             .where(
               and(
                 eq(attachments.user_id, userId),
-                eq(attachments.type, 'AVATAR'),
-                eq(attachments.organization_id, organization.id)
+                eq(attachments.type, 'AVATAR')
               )
             )
         } catch (error) {
@@ -100,12 +90,10 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         fileData.buffer,
         fileData.filename,
         fileData.mimetype,
-        organization.id,
-        'avatar',
-        userId
+        'avatar'
       )
 
-      // Salvar no banco de dados
+      // Salvar no banco de dados (sem organization_id para avatar de usuário)
       const [attachment] = await db
         .insert(attachments)
         .values({
@@ -116,7 +104,6 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
           mime_type: uploadResult.mimeType,
           type: 'AVATAR',
           encrypted: uploadResult.encrypted,
-          organization_id: organization.id,
           user_id: userId,
           uploaded_by: currentUserId,
         })
