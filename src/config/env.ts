@@ -20,6 +20,7 @@ export const env = createEnv({
     GOOGLE_OAUTH_CLIENT_ID: z.string().min(1, 'Google OAuth Client ID é obrigatório'),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1, 'Google OAuth Client Secret é obrigatório'),
     GOOGLE_OAUTH_CLIENT_REDIRECT_URI: z.string().url('Google OAuth Redirect URI deve ser uma URL válida'),
+    ALLOWED_ORIGINS: z.string().optional(),
   },
   shared: {},
   client: {},
@@ -40,6 +41,7 @@ export const env = createEnv({
     GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
     GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
     GOOGLE_OAUTH_CLIENT_REDIRECT_URI: process.env.GOOGLE_OAUTH_CLIENT_REDIRECT_URI,
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
   },
   emptyStringAsUndefined: true,
 })

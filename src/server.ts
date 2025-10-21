@@ -139,7 +139,7 @@ async function createApp() {
     throwFileSizeLimit: true,
   })
 
-  // CORS configurado com segurança
+    // CORS configurado com segurança
   await app.register(fastifyCors, {
     origin: (origin, callback) => {
       // Em produção, permitir todos os origins (ou especifique os domínios permitidos)
@@ -148,14 +148,28 @@ async function createApp() {
         return
       }
       
-      // Em desenvolvimento, permitir localhost
+      // Em desenvolvimento, permitir localhost e domínios Vercel
       const allowedOrigins = [
         'http://localhost:3000', 
         'http://localhost:3333', 
         'http://localhost:5173'
       ]
       
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Adicionar domínios customizados da variável de ambiente
+      if (env.ALLOWED_ORIGINS) {
+        const customOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        allowedOrigins.push(...customOrigins)
+      }
+      
+      // Verificar se o origin é da Vercel (*.vercel.app ou domínios personalizados)
+      const isVercelDomain = origin && (
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.vercel.com')
+      )
+      
+      const isAllowedOrigin = origin && allowedOrigins.includes(origin)
+      
+      if (!origin || isVercelDomain || isAllowedOrigin) {
         callback(null, true)
         return
       }
