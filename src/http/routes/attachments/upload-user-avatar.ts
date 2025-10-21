@@ -85,29 +85,61 @@ export const uploadUserAvatarRoute: FastifyPluginCallbackZod = (app) => {
         }
       }
 
-      // Upload para S3
-      const uploadResult = await storageService.uploadFile(
-        fileData.buffer,
-        fileData.filename,
-        fileData.mimetype,
-        'avatar'
-      )
+      // Upload para S3 — usamos userId como organizationId fallback para gerar a key
+      let uploadResult
+      try {
+        uploadResult = await storageService.uploadFile(
+          fileData.buffer,
+          fileData.filename,
+          fileData.mimetype,
+          userId, // organizationId fallback
+          'avatar',
+          userId // entityId opcional
+        )
+      } catch (err) {
+        request.log.error({
+          path: request.url,
+          ip: request.ip,
+          error: err instanceof Error ? err.message : String(err),
+        }, 'Erro ao fazer upload para storage')
+        throw new BadRequestError('Erro ao enviar arquivo para o storage')
+      }
 
       // Salvar no banco de dados (sem organization_id para avatar de usuário)
-      const [attachment] = await db
-        .insert(attachments)
-        .values({
-          key: uploadResult.key,
-          url: uploadResult.url,
-          original_name: uploadResult.originalName,
-          size: uploadResult.size,
-          mime_type: uploadResult.mimeType,
-          type: 'AVATAR',
-          encrypted: uploadResult.encrypted,
-          user_id: userId,
-          uploaded_by: currentUserId,
-        })
-        .returning()
+      let attachment
+      try {
+        const [saved] = await db
+          .insert(attachments)
+          .values({
+            key: uploadResult.key,
+            url: uploadResult.url,
+            original_name: uploadResult.originalName,
+            size: uploadResult.size,
+            mime_type: uploadResult.mimeType,
+            type: 'AVATAR',
+            encrypted: uploadResult.encrypted,
+            user_id: userId,
+            uploaded_by: currentUserId,
+          })
+          .returning()
+
+        attachment = saved
+      } catch (err) {
+        request.log.error({
+          path: request.url,
+          ip: request.ip,
+          error: err instanceof Error ? err.message : String(err),
+        }, 'Erro ao salvar attachment no banco')
+
+        // Tentar remover o arquivo do storage para evitar lixo
+        try {
+          if (uploadResult?.key) await storageService.deleteFile(uploadResult.key)
+        } catch (delErr) {
+          request.log.warn({ error: delErr instanceof Error ? delErr.message : String(delErr) }, 'Falha ao deletar arquivo no storage após erro de BD')
+        }
+
+        throw new BadRequestError('Erro ao salvar metadados do arquivo')
+      }
 
       // Atualizar o campo avatar_url na tabela users
       await db

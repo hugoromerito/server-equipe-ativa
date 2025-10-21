@@ -62,6 +62,11 @@ export async function processFileUpload(
     const file = await request.file()
     
     if (!file) {
+      request.log.warn({
+        isMultipart: request.isMultipart(),
+        contentType: request.headers['content-type'],
+      }, 'Nenhum arquivo foi encontrado na requisição')
+      
       throw new BadRequestError('Nenhum arquivo foi enviado')
     }
 

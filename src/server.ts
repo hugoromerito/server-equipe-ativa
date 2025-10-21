@@ -137,7 +137,7 @@ async function createApp() {
       fieldSize: 1024 * 1024, // 1MB
       headerPairs: 200,
     },
-    attachFieldsToBody: 'keyValues',
+    // attachFieldsToBody: 'keyValues', // REMOVIDO: conflita com request.file()
     throwFileSizeLimit: true,
   })
 
