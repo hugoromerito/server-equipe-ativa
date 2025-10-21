@@ -66,6 +66,30 @@ Content-Type: application/json
 GET {{baseUrl}}/profile
 Authorization: {{tokenAuth}}
 
+###
+
+# @name atualizar_perfil
+PUT {{baseUrl}}/profile
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "name": "Romerito Silva Atualizado",
+  "cpf": "12345678901"
+}
+
+###
+
+# @name atualizar_senha
+PUT {{baseUrl}}/profile
+Authorization: {{tokenAuth}}
+Content-Type: application/json
+
+{
+  "currentPassword": "senha123",
+  "password": "novaSenha456"
+}
+
 ###############################################################################
 # 🏢 ORGANIZAÇÕES
 ###############################################################################

@@ -67,6 +67,7 @@ import {
   authenticateWithPasswordRoute,
   authenticateWithGoogleRoute,
   getProfileRoute,
+  updateProfileRoute,
   requestPasswordRecoverRoute,
   resetPasswordRoute,
 } from './http/routes/auth/index.ts'
@@ -327,6 +328,7 @@ async function createApp() {
     app.register(authenticateWithPasswordRoute),
     app.register(authenticateWithGoogleRoute),
     app.register(getProfileRoute),
+    app.register(updateProfileRoute),
     app.register(requestPasswordRecoverRoute),
     app.register(resetPasswordRoute),
 
