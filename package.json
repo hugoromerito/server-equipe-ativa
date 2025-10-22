@@ -70,6 +70,7 @@
     "@fastify/swagger-ui": "^5.2.3",
     "@t3-oss/env-nextjs": "^0.13.8",
     "@types/pdfkit": "^0.17.3",
+    "@types/socket.io": "^3.0.2",
     "ai": "^4.3.19",
     "bcryptjs": "^3.0.2",
     "date-fns": "^4.1.0",
@@ -81,6 +82,7 @@
     "googleapis": "^159.0.0",
     "pdfkit": "^0.17.2",
     "postgres": "^3.4.7",
+    "socket.io": "^4.8.1",
     "tsx": "^4.20.5",
     "validation-br": "^1.5.2",
     "zod": "^3.25.76"

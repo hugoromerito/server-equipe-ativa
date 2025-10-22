@@ -31,6 +31,7 @@ import {
 import { env } from './config/env.ts'
 import { SWAGGER_CONFIG } from './config/constants.ts'
 import { logger } from './utils/logger.ts'
+import { initializeSocketServer, closeSocketServer } from './lib/socket-server.ts'
 
 // Extensão dos tipos do Fastify para incluir startTime para métricas
 declare module 'fastify' {
@@ -114,6 +115,7 @@ import {
 } from './http/routes/organizations/index.ts'
 import { createUnitRoute, getUnitsRoute } from './http/routes/units/index.ts'
 import { createUserRoute, getUsersRoute } from './http/routes/users/index.ts'
+import { websocketInfoRoute } from './http/routes/websocket/index.ts'
 import { errorHandler } from './http/routes/_errors/error-handler.ts'
 
 // Função para criar a aplicação
@@ -398,6 +400,9 @@ async function createApp() {
     app.register(getAttachmentsRoute),
     app.register(downloadAttachmentRoute),
     app.register(deleteAttachmentRoute),
+
+    // WebSocket routes
+    app.register(websocketInfoRoute),
   ])
 
   // Health check endpoint
@@ -454,23 +459,27 @@ async function startServer() {
   try {
     const app = await createApp()
 
-    // Graceful shutdown
-    const shutdown = async (signal: string) => {
-      logger.info(`Recebido ${signal}. Iniciando graceful shutdown...`)
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    logger.info(`Recebido ${signal}. Iniciando graceful shutdown...`)
+    
+    try {
+      // Fechar servidor Socket.IO primeiro
+      await closeSocketServer()
       
-      try {
-        await app.close()
-        logger.info('Servidor fechado com sucesso')
-        process.exit(0)
-      } catch (error) {
-        logger.error('Erro durante o shutdown:', {
-          error: error instanceof Error ? error.message : String(error)
-        })
-        process.exit(1)
-      }
+      // Depois fechar o servidor HTTP/Fastify
+      await app.close()
+      logger.info('Servidor fechado com sucesso')
+      process.exit(0)
+    } catch (error) {
+      logger.error('Erro durante o shutdown:', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      process.exit(1)
     }
+  }
 
-    process.on('SIGINT', () => shutdown('SIGINT'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
     process.on('SIGTERM', () => shutdown('SIGTERM'))
     process.on('uncaughtException', (error) => {
       logger.error('Uncaught Exception:', { error: error.message, stack: error.stack })
@@ -481,15 +490,20 @@ async function startServer() {
       process.exit(1)
     })
 
-    // Iniciar servidor
+    // Iniciar servidor HTTP
     await app.listen({ 
       port: env.PORT, 
       host: env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost' 
     })
+
+    // Inicializar servidor Socket.IO
+    const httpServer = app.server
+    initializeSocketServer(httpServer)
     
     logger.info(`🚀 Servidor rodando em http://localhost:${env.PORT}`)
     logger.info(`📚 Documentação disponível em http://localhost:${env.PORT}/docs`)
     logger.info(`🏥 Health check disponível em http://localhost:${env.PORT}/health`)
+    logger.info(`🔌 WebSocket disponível em ws://localhost:${env.PORT}`)
     
     if (env.NODE_ENV === 'development') {
       logger.info(`📊 Métricas disponíveis em http://localhost:${env.PORT}/metrics`)

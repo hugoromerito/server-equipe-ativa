@@ -21,6 +21,10 @@ import {
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
+import { emitToUnit } from '../../../lib/socket-server.ts'
+import { applicants } from '../../../db/schema/demands.ts'
+import { jobTitles } from '../../../db/schema/job-titles.ts'
+import type { PatientCalledData } from '../../../types/socket.ts'
 
 export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).patch(
@@ -204,6 +208,56 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       if (!updatedDemand) {
         throw new NotFoundError('Demanda não encontrada.')
+      }
+
+      // Emitir evento WebSocket se o status mudou para "IN_PROGRESS"
+      if (updateData.status === 'IN_PROGRESS' && demand.status !== 'IN_PROGRESS') {
+        // Buscar dados completos para o evento WebSocket
+        const [demandData] = await db
+          .select({
+            demandId: demands.id,
+            patientName: applicants.name,
+            memberName: users.name,
+            jobTitle: jobTitles.name,
+            status: demands.status,
+            priority: demands.priority,
+            unitId: units.id,
+            unitSlug: units.slug,
+            organizationId: organizations.id,
+            organizationSlug: organizations.slug,
+          })
+          .from(demands)
+          .innerJoin(applicants, eq(demands.applicant_id, applicants.id))
+          .innerJoin(units, eq(demands.unit_id, units.id))
+          .innerJoin(organizations, eq(units.organization_id, organizations.id))
+          .leftJoin(members, eq(demands.responsible_id, members.id))
+          .leftJoin(users, eq(members.user_id, users.id))
+          .leftJoin(jobTitles, eq(members.job_title_id, jobTitles.id))
+          .where(eq(demands.id, demandId))
+          .limit(1)
+
+        if (demandData) {
+          const patientCalledData: PatientCalledData = {
+            demandId: demandData.demandId,
+            patientName: demandData.patientName,
+            memberName: demandData.memberName || 'Não atribuído',
+            jobTitle: demandData.jobTitle,
+            status: demandData.status,
+            priority: demandData.priority,
+            calledAt: new Date(),
+            unitId: demandData.unitId,
+            unitSlug: demandData.unitSlug,
+            organizationId: demandData.organizationId,
+          }
+
+          // Emitir evento para a unidade
+          emitToUnit(
+            demandData.organizationSlug,
+            demandData.unitSlug,
+            'patient-called',
+            patientCalledData
+          )
+        }
       }
 
       return reply.send({
