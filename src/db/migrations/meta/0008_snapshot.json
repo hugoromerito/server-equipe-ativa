@@ -1,6 +1,6 @@
 {
-  "id": "134a3329-ab46-4fc9-b102-2435b8c85eb2",
-  "prevId": "d4482627-98a4-4072-86b1-5348ff36ea2d",
+  "id": "88a63bb7-e1da-481b-954c-4584a3ad6ea1",
+  "prevId": "134a3329-ab46-4fc9-b102-2435b8c85eb2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1479,7 +1479,7 @@
       "schema": "public",
       "values": [
         "PENDING",
-        "CHECKING",
+        "CHECK_IN",
         "IN_PROGRESS",
         "RESOLVED",
         "REJECTED",
