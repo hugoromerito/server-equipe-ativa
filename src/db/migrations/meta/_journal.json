@@ -57,6 +57,20 @@
       "when": 1761075238472,
       "tag": "0007_sharp_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1761182882660,
+      "tag": "0008_redundant_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1761183311991,
+      "tag": "0009_mysterious_grandmaster",
+      "breakpoints": true
     }
   ]
 }

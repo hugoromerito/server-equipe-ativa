@@ -8,12 +8,16 @@ import type { DemandStatusType } from '../../db/schema/enums.ts'
  * Define as transições válidas de status de demandas
  * Cada chave representa o status atual, e o array de valores representa
  * os status que podem ser aplicados a partir do status atual
+ * 
+ * Fluxo recomendado:
+ * PENDING → CHECK_IN → IN_PROGRESS → RESOLVED → BILLED
  */
 const VALID_STATUS_TRANSITIONS: Record<DemandStatusType, DemandStatusType[]> = {
-  PENDING: ['IN_PROGRESS', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED', 'REJECTED', 'PENDING'],
+  PENDING: ['CHECK_IN', 'REJECTED'],
+  CHECK_IN: ['IN_PROGRESS', 'PENDING', 'REJECTED'],
+  IN_PROGRESS: ['RESOLVED', 'REJECTED', 'CHECK_IN'],
   RESOLVED: ['BILLED', 'IN_PROGRESS'],
-  REJECTED: ['PENDING', 'IN_PROGRESS'],
+  REJECTED: ['PENDING', 'CHECK_IN'],
   BILLED: [], // Status final, não pode ser alterado
 }
 
