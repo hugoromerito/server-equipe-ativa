@@ -81,12 +81,13 @@ function getOrderByClause(sortBy: string = 'scheduled_datetime', sortOrder: stri
   
   const isAsc = sortOrder === 'asc'
   const statusPriority = sql`CASE ${demands.status}
-    WHEN 'IN_PROGRESS' THEN 1
-    WHEN 'PENDING' THEN 2
-    WHEN 'RESOLVED' THEN 3
-    WHEN 'BILLED' THEN 4
-    WHEN 'REJECTED' THEN 5
-    ELSE 6
+    WHEN 'CHECK_IN' THEN 1
+    WHEN 'IN_PROGRESS' THEN 2
+    WHEN 'PENDING' THEN 3
+    WHEN 'RESOLVED' THEN 4
+    WHEN 'BILLED' THEN 5
+    WHEN 'REJECTED' THEN 6
+    ELSE 7
   END`
 
   switch (sortBy) {

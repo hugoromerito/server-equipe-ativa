@@ -77,6 +77,7 @@ import {
   createDemandRoute,
   getDemandRoute,
   getDemandsRoute,
+  getMemberDemandsRoute,
   updateDemandRoute,
 } from './http/routes/demands/index.ts'
 import {
@@ -388,6 +389,7 @@ async function createApp() {
     app.register(createDemandRoute),
     app.register(getDemandRoute),
     app.register(getDemandsRoute),
+    app.register(getMemberDemandsRoute),
     app.register(updateDemandRoute),
 
     // Attachment routes
