@@ -101,11 +101,9 @@ export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
       const userId = await request.getCurrentUserId()
 
       const { membership } = await request.getUserMembership(organizationSlug)
+      const userRole = membership.unit_role || membership.organization_role
 
-      const { cannot } = getUserPermissions(
-        userId,
-        membership.unit_role || membership.organization_role
-      )
+      const { cannot } = getUserPermissions(userId, userRole)
 
       if (cannot('get', 'Demand')) {
         throw new UnauthorizedError(
@@ -201,6 +199,34 @@ export const getDemandRoute: FastifyPluginCallbackZod = (app) => {
       }
 
       const demandData = demandResult[0]
+
+      // Para ANALYST: validar ownership (só pode ver suas próprias demands)
+      if (userRole === 'ANALYST') {
+        // Buscar o member_id do ANALYST na unidade
+        const [member] = await db
+          .select({ id: members.id })
+          .from(members)
+          .where(
+            and(
+              eq(members.user_id, userId),
+              eq(members.unit_id, unit[0].units.id)
+            )
+          )
+          .limit(1)
+
+        if (!member) {
+          throw new UnauthorizedError(
+            'Você não é membro desta unidade.'
+          )
+        }
+
+        // Verificar se a demand está atribuída a ele
+        if (demandData.responsibleId !== member.id) {
+          throw new UnauthorizedError(
+            'Você só pode visualizar suas próprias demandas.'
+          )
+        }
+      }
 
       // Estruturar a resposta conforme o schema
       const demand = {

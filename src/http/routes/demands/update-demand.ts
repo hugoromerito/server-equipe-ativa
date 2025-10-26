@@ -14,10 +14,8 @@ import {
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { validateMemberScheduling } from '../../utils/schedule-validation.ts'
-import { 
-  isValidStatusTransition, 
-  getStatusTransitionErrorMessage 
-} from '../../utils/validate-demand-status.ts'
+import { validateCompleteStatusTransition } from '../../../utils/demand-status-transitions.ts'
+import { logDemandStatusChange } from '../../../utils/audit-logger.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -46,6 +44,7 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
           description: z.string().optional(),
           priority: demandPriorityZodEnum.optional(),
           status: demandStatusZodEnum.optional(),
+          reason: z.string().optional(),
           scheduledDate: z
             .string()
             .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD')
@@ -127,11 +126,26 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
         throw new NotFoundError('Demanda não encontrada.')
       }
 
+      const userRole = membership.organization_role === 'ADMIN' 
+        ? membership.organization_role 
+        : membership.unit_role ?? membership.organization_role
+
+      // Validação especial para ANALYST (médico)
+      if (userRole === 'ANALYST') {
+        if (!demand.responsible_id || demand.responsible_id !== membership.id) {
+          throw new UnauthorizedError(
+            'Você só pode atualizar demands atribuídas a você.'
+          )
+        }
+      }
+
       // Validar transição de status se um novo status foi fornecido
       if (updateData.status && updateData.status !== demand.status) {
-        if (!isValidStatusTransition(demand.status, updateData.status)) {
+        try {
+          validateCompleteStatusTransition(userRole, demand.status, updateData.status)
+        } catch (error) {
           throw new BadRequestError(
-            getStatusTransitionErrorMessage(demand.status, updateData.status)
+            error instanceof Error ? error.message : 'Transição de status inválida'
           )
         }
       }
@@ -208,6 +222,32 @@ export const updateDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       if (!updatedDemand) {
         throw new NotFoundError('Demanda não encontrada.')
+      }
+
+      // Registrar auditoria se o status mudou
+      if (updateData.status && updateData.status !== demand.status) {
+        const [user] = await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+
+        await logDemandStatusChange({
+          demandId,
+          previousStatus: demand.status,
+          newStatus: updateData.status,
+          changedByUserId: userId,
+          changedByMemberId: membership.id ?? null,
+          changedByUserName: user?.name ?? null,
+          changedByRole: userRole,
+          reason: updateData.reason,
+          metadata: {
+            ip: request.ip,
+            userAgent: request.headers['user-agent'],
+            unitId: membership.unit_id ?? undefined,
+            organizationId: membership.organization_id,
+          },
+        })
       }
 
       // Emitir evento WebSocket se o status mudou para "IN_PROGRESS"

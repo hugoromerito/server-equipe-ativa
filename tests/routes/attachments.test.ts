@@ -90,7 +90,7 @@ describe('Attachments Routes', () => {
       // Act
       const response = await app.inject({
         method: 'POST',
-        url: `/organizations/${organizationSlug}/users/${userId}/avatar`,
+        url: `/users/${userId}/avatar`,
         headers: {
           authorization: `Bearer ${authToken}`,
           'content-type': 'multipart/form-data; boundary=----formdata-test',
@@ -117,7 +117,7 @@ describe('Attachments Routes', () => {
       // Act
       const response = await app.inject({
         method: 'POST',
-        url: `/organizations/${organizationSlug}/users/${userId}/avatar`,
+        url: `/users/${userId}/avatar`,
         headers: {
           'content-type': 'multipart/form-data; boundary=----formdata-test',
         },

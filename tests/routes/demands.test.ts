@@ -932,7 +932,7 @@ describe('Demands Routes', () => {
       // Assert
       expect(response.statusCode).toBe(400)
       const body = JSON.parse(response.body)
-      expect(body.message).toContain('RESOLVED')
+      expect(body.message).toContain('não é possível mudar de "PENDING" para "BILLED"')
     })
 
     it('deve impedir atualizar status de uma demanda BILLED', async () => {
@@ -972,7 +972,7 @@ describe('Demands Routes', () => {
       // Assert
       expect(response.statusCode).toBe(400)
       const body = JSON.parse(response.body)
-      expect(body.message).toContain('faturada')
+      expect(body.message).toContain('não é possível mudar de "BILLED"')
     })
   })
 })

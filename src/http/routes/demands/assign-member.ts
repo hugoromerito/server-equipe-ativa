@@ -13,6 +13,7 @@ import {
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { validateMemberScheduling } from '../../utils/schedule-validation.ts'
+import { logDemandStatusChange } from '../../../utils/audit-logger.ts'
 import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
@@ -71,12 +72,11 @@ export const assignMemberToDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       // Verificar permissões
       const { membership } = await request.getUserMembership(organizationSlug)
-      const { cannot } = getUserPermissions(
-        userId,
-        membership.organization_role === 'ADMIN' 
-          ? membership.organization_role 
-          : membership.unit_role ?? membership.organization_role
-      )
+      const userRole = membership.organization_role === 'ADMIN' 
+        ? membership.organization_role 
+        : membership.unit_role ?? membership.organization_role
+      
+      const { cannot } = getUserPermissions(userId, userRole)
 
       if (cannot('update', 'Demand')) {
         throw new UnauthorizedError(
@@ -107,6 +107,32 @@ export const assignMemberToDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       if (!demand) {
         throw new NotFoundError('Demanda não encontrada.')
+      }
+
+      // Para ANALYST: validar ownership (só pode reatribuir suas próprias demands)
+      if (userRole === 'ANALYST') {
+        // Buscar o member_id do ANALYST na unidade
+        const [analystMember] = await db
+          .select({ id: members.id })
+          .from(members)
+          .where(
+            and(
+              eq(members.user_id, userId),
+              eq(members.unit_id, demand.unit_id)
+            )
+          )
+          .limit(1)
+
+        if (!analystMember) {
+          throw new UnauthorizedError('Você não é membro desta unidade.')
+        }
+
+        // Se a demand já tem um responsável e não é ele mesmo, bloquear
+        if (demand.responsible_id && demand.responsible_id !== analystMember.id) {
+          throw new UnauthorizedError(
+            'Você só pode gerenciar suas próprias demandas.'
+          )
+        }
       }
 
       // Verificar se a demanda não está finalizada
@@ -169,13 +195,16 @@ export const assignMemberToDemandRoute: FastifyPluginCallbackZod = (app) => {
         .limit(1)
 
       // Atualizar a demanda com o agendamento
+      const previousStatus = demand.status
+      const newStatus = demand.status === 'PENDING' ? 'IN_PROGRESS' : demand.status
+      
       const [updatedDemand] = await db
         .update(demands)
         .set({
           responsible_id: responsibleId,
           scheduled_date: scheduledDate,
           scheduled_time: scheduledTime,
-          status: demand.status === 'PENDING' ? 'IN_PROGRESS' : demand.status,
+          status: newStatus,
           updated_at: new Date(),
         })
         .where(eq(demands.id, demandId))
@@ -187,6 +216,37 @@ export const assignMemberToDemandRoute: FastifyPluginCallbackZod = (app) => {
 
       if (!updatedDemand) {
         throw new NotFoundError('Falha ao atualizar a demanda.')
+      }
+
+      // Registrar auditoria se o status mudou
+      if (previousStatus !== newStatus) {
+        const [currentUser] = await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+
+        const userRole = membership.organization_role === 'ADMIN' 
+          ? membership.organization_role 
+          : membership.unit_role ?? membership.organization_role
+
+        await logDemandStatusChange({
+          demandId,
+          previousStatus,
+          newStatus,
+          changedByUserId: userId,
+          changedByMemberId: membership.id ?? null,
+          changedByUserName: currentUser?.name ?? null,
+          changedByRole: userRole,
+          reason: `Profissional atribuído: ${memberWithDetails?.userName}`,
+          metadata: {
+            ip: request.ip,
+            userAgent: request.headers['user-agent'],
+            responsibleId,
+            scheduledDate,
+            scheduledTime,
+          },
+        })
       }
 
       return reply.send({

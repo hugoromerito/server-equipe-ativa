@@ -82,7 +82,7 @@ describe('Additional Demands Routes', () => {
         organization_id: organizationId,
         unit_id: unitId,
         organization_role: 'ADMIN',
-        unit_role: 'ANALYST', // ANALYST tem permissão para update em Demand
+        unit_role: 'ADMIN', // ADMIN tem permissão total
       })
     }
 

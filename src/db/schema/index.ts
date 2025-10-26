@@ -1,4 +1,5 @@
 export { attachments } from './attachments.ts'
+export { demandStatusAuditLog } from './audit.ts'
 export { accounts, tokens, users } from './auth.ts'
 export { billings } from './billings.ts'
 export { applicants, demands } from './demands.ts'

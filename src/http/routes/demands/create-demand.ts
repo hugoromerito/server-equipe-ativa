@@ -257,8 +257,8 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
         if (process.env.NODE_ENV === 'test') {
           // Mock para testes - usa valores padrão
           classificationResult = {
-            category: 'PSICOLOGIA',
-            priority: 'MEDIA'
+            category: 'PSYCHOLOGIST',
+            priority: 'MEDIUM'
           }
         } else {
           logger.info(`Classificando demanda com IA: "${title}"`)

@@ -274,15 +274,54 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
       // Authorization validation
       const userId = await request.getCurrentUserId()
       const { membership } = await request.getUserMembership(organizationSlug)
-      const { cannot } = getUserPermissions(
-        userId,
-        membership.unit_role || membership.organization_role
-      )
+      const userRole = membership.unit_role || membership.organization_role
+      const { cannot } = getUserPermissions(userId, userRole)
 
       if (cannot('get', 'Demand')) {
         throw new UnauthorizedError(
           'Você não possui permissão para visualizar as demandas.'
         )
+      }
+
+      // Para ANALYST: filtrar automaticamente apenas suas demands
+      let analystResponsibleId = responsibleId
+      if (userRole === 'ANALYST') {
+        // Buscar o member_id do ANALYST na unidade
+        const [unit] = await db
+          .select({ id: units.id })
+          .from(units)
+          .innerJoin(organizations, eq(units.organization_id, organizations.id))
+          .where(
+            and(
+              eq(units.slug, unitSlug),
+              eq(organizations.slug, organizationSlug)
+            )
+          )
+          .limit(1)
+
+        if (!unit) {
+          throw new UnauthorizedError('Unidade não encontrada.')
+        }
+
+        const [member] = await db
+          .select({ id: members.id })
+          .from(members)
+          .where(
+            and(
+              eq(members.user_id, userId),
+              eq(members.unit_id, unit.id)
+            )
+          )
+          .limit(1)
+
+        if (!member) {
+          throw new UnauthorizedError(
+            'Você não é membro desta unidade.'
+          )
+        }
+
+        // Forçar filtro por responsibleId para ANALYST
+        analystResponsibleId = member.id
       }
 
       // Build conditions
@@ -295,7 +334,7 @@ export const getDemandsRoute: FastifyPluginCallbackZod = (app) => {
         created_at,
         updated_at,
         search,
-        responsibleId,
+        responsibleId: analystResponsibleId,
       })
 
       // Get order by clause

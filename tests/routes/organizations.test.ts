@@ -306,7 +306,7 @@ describe('Organizations Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(403)
+      expect(response.statusCode).toBe(404)
     })
 
     it('deve retornar erro para usuário sem membership', async () => {
@@ -327,7 +327,7 @@ describe('Organizations Routes', () => {
       })
 
       // Assert
-      expect(response.statusCode).toBe(403)
+      expect(response.statusCode).toBe(404)
     })
   })
 

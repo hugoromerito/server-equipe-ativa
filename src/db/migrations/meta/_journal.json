@@ -64,6 +64,13 @@
       "when": 1761183311991,
       "tag": "0008_mysterious_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1761341127722,
+      "tag": "0009_glamorous_groot",
+      "breakpoints": true
     }
   ]
 }
