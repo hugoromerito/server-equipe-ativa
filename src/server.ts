@@ -117,6 +117,12 @@ import {
 import { createUnitRoute, getUnitsRoute } from './http/routes/units/index.ts'
 import { createUserRoute, getUsersRoute } from './http/routes/users/index.ts'
 import { websocketInfoRoute } from './http/routes/websocket/index.ts'
+import {
+  createTVTokenRoute,
+  getTVTokensRoute,
+  revokeTVTokenRoute,
+  validateTVCodeRoute,
+} from './http/routes/tv-tokens/index.ts'
 import { errorHandler } from './http/routes/_errors/error-handler.ts'
 
 // Função para criar a aplicação
@@ -405,6 +411,12 @@ async function createApp() {
 
     // WebSocket routes
     app.register(websocketInfoRoute),
+
+    // TV Token routes
+    app.register(createTVTokenRoute),
+    app.register(getTVTokensRoute),
+    app.register(revokeTVTokenRoute),
+    app.register(validateTVCodeRoute),
   ])
 
   // Health check endpoint

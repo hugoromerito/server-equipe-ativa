@@ -3,10 +3,15 @@
  * 
  * Gerencia conexões em tempo real para atualizações de demandas,
  * organizando clientes em salas por organização e unidade.
+ * 
+ * Suporta autenticação via:
+ * - JWT tradicional (usuários logados)
+ * - TV Session Token (TVs sem login)
  */
 
 import { Server as SocketIOServer } from 'socket.io'
 import type { Server as HTTPServer } from 'node:http'
+import { eq } from 'drizzle-orm'
 import { logger } from '../utils/logger.ts'
 import {
   type TypedSocket,
@@ -15,8 +20,57 @@ import {
   getUnitRoom,
 } from '../types/socket.ts'
 import { env } from '../config/env.ts'
+import { db } from '../db/connection.ts'
+import { tvAccessTokens } from '../db/schema/index.ts'
 
 let io: TypedSocketServer | null = null
+
+/**
+ * Valida token de sessão TV e retorna informações
+ */
+async function validateTVSessionToken(sessionToken: string): Promise<{
+  valid: boolean
+  organizationSlug?: string
+  unitSlug?: string
+  tokenId?: string
+} | null> {
+  try {
+    // Decodificar JWT sem verificar (apenas para extrair payload)
+    const payload = JSON.parse(
+      Buffer.from(sessionToken.split('.')[1], 'base64').toString()
+    )
+
+    if (payload.type !== 'tv-session' || payload.iss !== 'tv-session') {
+      return null
+    }
+
+    // Buscar token no banco
+    const [token] = await db
+      .select()
+      .from(tvAccessTokens)
+      .where(eq(tvAccessTokens.id, payload.tokenId))
+      .limit(1)
+
+    if (!token || token.status !== 'ACTIVE') {
+      return null
+    }
+
+    // Verificar expiração
+    if (token.expiresAt && new Date() > token.expiresAt) {
+      return null
+    }
+
+    return {
+      valid: true,
+      organizationSlug: payload.organizationSlug,
+      unitSlug: payload.unitSlug,
+      tokenId: token.id,
+    }
+  } catch (error) {
+    logger.error('Erro ao validar TV session token', { error })
+    return null
+  }
+}
 
 /**
  * Inicializa o servidor Socket.IO
@@ -72,18 +126,74 @@ export function initializeSocketServer(httpServer: HTTPServer): TypedSocketServe
     transports: ['websocket', 'polling'],
   })
 
+  // Middleware de autenticação (opcional, permite TV tokens)
+  io.use(async (socket, next) => {
+    const authType = socket.handshake.auth?.type
+
+    // Se for TV token, validar
+    if (authType === 'tv-token') {
+      const tvToken = socket.handshake.auth?.tvToken
+
+      if (!tvToken) {
+        return next(new Error('TV token não fornecido'))
+      }
+
+      const validation = await validateTVSessionToken(tvToken)
+
+      if (!validation || !validation.valid) {
+        return next(new Error('Token de TV inválido ou expirado'))
+      }
+
+      // Armazenar contexto da TV no socket
+      socket.data.isTVSession = true
+      socket.data.organizationSlug = validation.organizationSlug
+      socket.data.unitSlug = validation.unitSlug
+      socket.data.tvTokenId = validation.tokenId
+
+      logger.info('TV conectada via session token', {
+        socketId: socket.id,
+        organizationSlug: validation.organizationSlug,
+        unitSlug: validation.unitSlug,
+      })
+
+      return next()
+    }
+
+    // Para outros tipos de autenticação (JWT), permitir sem validação
+    // A validação JWT pode ser implementada aqui se necessário
+    next()
+  })
+
   // Handler para novas conexões
   io.on('connection', (socket: TypedSocket) => {
+    const isTVSession = socket.data.isTVSession || false
+
     logger.info('Cliente conectado ao WebSocket', {
       socketId: socket.id,
       transport: socket.conn.transport.name,
+      isTVSession,
     })
 
     // Enviar confirmação de conexão
     socket.emit('connected', {
-      message: 'Conectado ao servidor WebSocket',
+      message: socket.data.isTVSession 
+        ? 'TV conectada ao servidor WebSocket'
+        : 'Conectado ao servidor WebSocket',
       timestamp: new Date(),
     })
+
+    // Se for sessão de TV, entrar automaticamente na sala da unidade
+    if (socket.data.isTVSession && socket.data.organizationSlug && socket.data.unitSlug) {
+      const room = getUnitRoom(socket.data.organizationSlug, socket.data.unitSlug)
+      socket.join(room)
+      
+      logger.info('TV entrou automaticamente na sala da unidade', {
+        socketId: socket.id,
+        organizationSlug: socket.data.organizationSlug,
+        unitSlug: socket.data.unitSlug,
+        room,
+      })
+    }
 
     // Handler: Cliente entra em sala de organização
     socket.on('join-organization', (organizationSlug: string) => {

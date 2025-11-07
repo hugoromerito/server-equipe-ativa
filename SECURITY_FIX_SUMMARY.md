@@ -319,6 +319,10 @@ src/http/routes/demands/
 
 ---
 
-**Implementado por**: GitHub Copilot  
+
+---
+
 **Aprovado em**: 24/10/2025  
 **Pronto para produção**: ✅ Sim
+
+```
