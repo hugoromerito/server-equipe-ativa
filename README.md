@@ -1,266 +1,359 @@
 # 🚀 Equipe Ativa API
 
-Uma API REST robusta para gerenciamento de equipes ativas, desenvolvida com **TypeScript**, **Fastify** e **PostgreSQL**. Este sistema oferece funcionalidades completas para gestão de organizações, unidades, membros, demandas e solicitações.
+Uma API REST robusta e bem organizada para gerenciamento de equipes ativas, desenvolvida com **TypeScript**, **Fastify** e **PostgreSQL**. Sistema completo para gestão de organizações, unidades, membros, demandas e muito mais.
+
+## ✨ Destaques
+
+- 🏗️ **Arquitetura limpa e modular** seguindo princípios SOLID e Clean Architecture
+- 📦 **Barrel exports** para imports organizados
+- 🎯 **Types de domínio** bem definidos
+- 📚 **Documentação completa** em `docs/`
+- ✅ **100% TypeScript** com type safety
+- 🧪 **Testes abrangentes** com Vitest
+- 🔒 **Segurança robusta** com JWT e CASL
+- 🚀 **Performance otimizada** com caching e paginação
+
+## 📖 Documentação
+
+| Documento | Descrição |
+|-----------|-----------|
+| **[QUICK_START.md](./QUICK_START.md)** | 🚀 Guia rápido para começar |
+| **[STRUCTURE.md](./STRUCTURE.md)** | 🏗️ Estrutura do projeto |
+| **[BEST_PRACTICES.md](./BEST_PRACTICES.md)** | 📖 Guia de boas práticas |
+| **[EXAMPLE.ts](./EXAMPLE.ts)** | 💡 Exemplos de código |
+| **[CHANGELOG.md](./CHANGELOG.md)** | 📋 Histórico de mudanças |
+| **[docs/](./docs/)** | 📚 Documentação detalhada |
+
+## 🚀 Início Rápido
+
+```bash
+# 1. Clone e instale
+git clone <repository-url>
+cd server-equipe-ativa
+nvm use  # Node.js 22.0.0
+npm install
+
+# 2. Configure ambiente
+cp .env.example .env
+# Edite .env com suas configurações
+
+# 3. Inicie banco e migrações
+npm run docker:up
+npm run db:migrate
+npm run db:seed
+
+# 4. Inicie o servidor
+npm run dev
+```
+
+🎉 API rodando em `http://localhost:3333`  
+📚 Documentação em `http://localhost:3333/docs`
+
+➡️ **Para guia completo, veja [QUICK_START.md](./QUICK_START.md)**
 
 ## ✨ Funcionalidades
 
 ### 🔐 Autenticação & Autorização
-- Sistema de autenticação JWT
+- Sistema JWT completo
+- Login com senha e Google OAuth
 - Recuperação de senha
-- Gestão de perfis de usuário
-- Sistema de permissões baseado em CASL
+- Sistema de permissões CASL
+- Roles: ADMIN, MEMBER, ANALYST, BILLING
 
 ### 🏢 Gestão Organizacional
-- **Organizações**: Criação, atualização e gerenciamento
-- **Unidades**: Estrutura hierárquica dentro das organizações
-- **Membros**: Convites, aceite/rejeição e gerenciamento de membros
-- **Permissões**: Sistema granular de controle de acesso
+- Múltiplas organizações
+- Unidades hierárquicas
+- Sistema de convites
+- Membros e permissões
+- Cargos personalizáveis
 
 ### 📋 Sistema de Demandas
-- Criação e atualização de demandas
-- Classificação automática de demandas com IA (OpenAI)
-- Vinculação de solicitantes às demandas
-- Histórico completo de demandas
+- CRUD completo de demandas
+- Status workflow: pending → in_progress → completed
+- Prioridades e categorias
+- Auditoria de mudanças
+- Atribuição de membros
 
 ### 👥 Gestão de Solicitantes
-- Cadastro e validação de solicitantes
-- Verificação de CPF
-- Consulta de demandas por solicitante
+- Cadastro com validação de CPF
+- Vinculação a demandas
+- Histórico completo
 
-### 📎 Upload de Arquivos
-- Upload de avatares de usuários
-- Integração com AWS S3
-- URLs pré-assinadas para segurança
+### 📎 Upload & Anexos
+- AWS S3 integration
+- Múltiplos tipos: avatares, documentos
+- URLs pré-assinadas
+- Validação de tipos e tamanhos
 
-## 🛠️ Tecnologias
+### 💳 Billing & Subscriptions
+- Integração Stripe
+- Planos e assinaturas
+- Webhooks para pagamentos
+- Gestão de payment methods
+
+### 📊 Scheduling & Availability
+- Dias de trabalho configuráveis
+- Disponibilidade de membros
+- Geração de timesheet PDF
+- Agendamento de atividades
+
+### 🖥️ Sistema de Acesso via TV
+- Códigos de 6 dígitos
+- Tokens com expiração
+- Validação segura
+
+### 🔌 WebSocket
+- Comunicação em tempo real
+- Notificações push
+- Status updates
+
+## 🛠️ Stack Tecnológica
 
 ### Backend
-- **[Fastify](https://fastify.dev/)** - Framework web rápido e eficiente
-- **[TypeScript](https://www.typescriptlang.org/)** - Linguagem principal
-- **[Drizzle ORM](https://orm.drizzle.team/)** - ORM type-safe para PostgreSQL
-- **[Zod](https://zod.dev/)** - Validação de schemas
-- **[CASL](https://casl.js.org/)** - Sistema de autorização
+- **Fastify** - Framework web performático
+- **TypeScript** - Type safety
+- **Drizzle ORM** - Database ORM
+- **Zod** - Schema validation
+- **CASL** - Authorization
 
-### Banco de Dados
-- **[PostgreSQL](https://www.postgresql.org/)** com **[pgvector](https://github.com/pgvector/pgvector)**
-- **[Docker](https://www.docker.com/)** para containerização
+### Database
+- **PostgreSQL** - Database principal
+- **pgvector** - Vector similarity
 
-### Integrações
-- **[OpenAI](https://openai.com/)** - IA para classificação de demandas
-- **[AWS S3](https://aws.amazon.com/s3/)** - Armazenamento de arquivos
-- **[Swagger/OpenAPI](https://swagger.io/)** - Documentação da API
+### Serviços
+- **AWS S3** - File storage
+- **Stripe** - Payments
+- **OpenAI** - AI classification
+- **Socket.IO** - Real-time
 
-### Qualidade de Código
-- **[Biome](https://biomejs.dev/)** - Linter e formatter
-- **[Validation BR](https://github.com/brazilian-utils/brazilian-utils)** - Validações brasileiras (CPF)
+### DevOps
+- **Docker** - Containerization
+- **Heroku** - Deployment
+- **Biome** - Linting & formatting
+- **Vitest** - Testing
 
-## 🚀 Início Rápido
-
-### Pré-requisitos
-- **Node.js** 18+ 
-- **Docker** e **Docker Compose**
-- **PostgreSQL** (ou use o Docker)
-
-### 1. Clone o repositório
-```bash
-git clone https://github.com/hugoromerito/server-equipe-ativa.git
-cd server-equipe-ativa
-```
-
-> **⚠️ ACESSO RESTRITO**: Este repositório é privado. Certifique-se de ter as permissões necessárias.
-
-### 2. Instale as dependências
-```bash
-npm install
-```
-
-### 3. Configure as variáveis de ambiente
-Crie um arquivo `.env` na raiz do projeto:
-
-```env
-# Database
-DATABASE_URL="postgresql://docker:docker@localhost:5432/agents"
-
-# JWT
-JWT_SECRET="seu-jwt-secret-super-seguro"
-
-# OpenAI
-OPENAI_API_KEY="sua-chave-da-openai"
-
-# AWS S3
-AWS_BUCKET_NAME="seu-bucket-s3"
-AWS_ACCESS_KEY_ID="sua-access-key"
-AWS_SECRET_ACCESS_KEY="sua-secret-key"
-AWS_REGION="us-east-1"
-
-# Server
-PORT=3333
-```
-
-### 4. Inicie o banco de dados
-```bash
-docker-compose up -d
-```
-
-### 5. Execute as migrações
-```bash
-npm run db:migrate
-```
-
-### 6. (Opcional) Execute o seed
-```bash
-npm run db:seed
-```
-
-### 7. Inicie o servidor
-```bash
-# Desenvolvimento
-npm run dev
-
-# Produção
-npm start
-```
-
-A API estará disponível em `http://localhost:3333`
-
-## 📚 Documentação da API
-
-Acesse a documentação interativa do Swagger em:
-```
-http://localhost:3333/docs
-```
-
-### Principais Endpoints
-
-#### 🔐 Autenticação
-- `POST /auth/password` - Login com email/senha
-- `POST /auth/recover` - Solicitar recuperação de senha
-- `POST /auth/reset` - Resetar senha
-- `GET /auth/profile` - Obter perfil do usuário
-
-#### 🏢 Organizações
-- `GET /organizations` - Listar organizações
-- `POST /organizations` - Criar organização
-- `PUT /organizations/:id` - Atualizar organização
-- `DELETE /organizations/:id` - Desativar organização
-
-#### 👥 Usuários e Membros
-- `GET /users` - Listar usuários
-- `POST /users` - Criar usuário
-- `GET /organizations/:orgId/members` - Listar membros da organização
-
-#### 📋 Demandas
-- `GET /demands` - Listar demandas
-- `POST /demands` - Criar demanda
-- `PUT /demands/:id` - Atualizar demanda
-- `GET /demands/:id` - Obter demanda específica
-
-## 🗂️ Estrutura do Projeto
+## 📁 Estrutura Organizada
 
 ```
-src/
-├── config/           # Configurações (env, etc)
-├── db/              # Database
-│   ├── schema/      # Schemas do Drizzle
-│   ├── migrations/  # Migrações SQL
-│   └── auth/        # Sistema de autenticação/autorização
-├── http/            # Camada HTTP
-│   ├── routes/      # Definição das rotas
-│   ├── middlewares/ # Middlewares (auth, upload)
-│   └── utils/       # Utilitários HTTP
-├── services/        # Serviços externos (S3, etc)
-└── types/           # Definições de tipos TypeScript
+server-equipe-ativa/
+├── docs/                    # 📚 Documentação completa
+│   ├── api/                # Docs de APIs
+│   ├── guides/             # Guias de implementação
+│   ├── deployment/         # Guias de deploy
+│   ├── testing/            # Docs de testes
+│   └── analysis/           # Análises técnicas
+│
+├── src/
+│   ├── config/             # ⚙️ Configurações
+│   │   ├── constants/     # Por domínio (http, validation, business)
+│   │   ├── plugins.ts     # Plugins Fastify
+│   │   ├── routes.ts      # Registro de rotas
+│   │   └── hooks.ts       # Hooks
+│   │
+│   ├── types/domain/       # 📝 Types organizados
+│   │   ├── auth.ts
+│   │   ├── organization.ts
+│   │   ├── demand.ts
+│   │   └── billing.ts
+│   │
+│   ├── services/           # 🔧 Business services
+│   ├── utils/              # 🛠️ Utilities
+│   ├── http/               # 🌐 HTTP layer
+│   ├── db/                 # 💾 Database
+│   └── server.ts           # 🚀 Entry point
+│
+├── tests/                   # 🧪 Testes
+├── STRUCTURE.md            # Documentação da estrutura
+├── BEST_PRACTICES.md       # Guia de boas práticas
+└── QUICK_START.md          # Guia rápido
 ```
 
-## 🧪 Scripts Disponíveis
+➡️ **Para estrutura completa, veja [STRUCTURE.md](./STRUCTURE.md)**
+
+## 🎯 Princípios Aplicados
+
+- ✅ **SOLID Principles**
+- ✅ **Clean Architecture**
+- ✅ **Domain-Driven Design**
+- ✅ **Separation of Concerns**
+- ✅ **Barrel Exports Pattern**
+- ✅ **Convention over Configuration**
+
+➡️ **Para boas práticas, veja [BEST_PRACTICES.md](./BEST_PRACTICES.md)**
+
+## 📝 Scripts Principais
 
 ```bash
 # Desenvolvimento
-npm run dev          # Inicia o servidor em modo watch
-
-# Produção
-npm start           # Inicia o servidor
+npm run dev              # Com hot-reload
 
 # Database
-npm run db:seed     # Executa o seed do banco
+npm run db:migrate       # Migrações
+npm run db:seed          # Popular dados
+npm run db:studio        # Drizzle Studio
 
-# Qualidade de código
-npx @biomejs/biome check .    # Verifica linting
-npx @biomejs/biome format .   # Formata código
+# Testes
+npm test                 # Executar testes
+npm run test:coverage    # Cobertura
+
+# Qualidade
+npm run lint             # Verificar código
+npm run type-check       # Verificar tipos
+npm run validate         # Lint + type + tests
+
+# Docker
+npm run docker:up        # Subir containers
+npm run docker:down      # Parar containers
+```
+
+## 🌐 Endpoints Principais
+
+### Autenticação
+```
+POST   /auth/password        # Login
+POST   /auth/google          # Google OAuth
+GET    /auth/profile         # Perfil
+POST   /auth/recover         # Recuperar senha
+POST   /auth/reset           # Resetar senha
+```
+
+### Organizações
+```
+GET    /organizations        # Listar
+POST   /organizations        # Criar
+GET    /organizations/:id    # Detalhes
+PATCH  /organizations/:id    # Atualizar
+DELETE /organizations/:id    # Desativar
+```
+
+### Demandas
+```
+GET    /demands              # Listar
+POST   /demands              # Criar
+GET    /demands/:id          # Detalhes
+PATCH  /demands/:id          # Atualizar
+POST   /demands/:id/assign   # Atribuir membro
+```
+
+📚 **Documentação completa:** `http://localhost:3333/docs`
+
+## 🧪 Testes
+
+```bash
+# Todos os testes
+npm test
+
+# Modo watch
+npm run test:watch
+
+# Com UI
+npm run test:ui
+
+# Cobertura
+npm run test:coverage
+
+# Teste específico
+npm test -- auth.test.ts
 ```
 
 ## 🐳 Docker
 
-O projeto inclui configuração Docker para o banco PostgreSQL com pgvector:
-
 ```bash
-# Iniciar serviços
+# Iniciar PostgreSQL
 docker-compose up -d
 
-# Parar serviços
-docker-compose down
+# Logs
+docker-compose logs -f
 
-# Ver logs
-docker-compose logs
+# Parar
+docker-compose down
 ```
 
-## 🌐 Deploy
+## 🚀 Deploy
 
 ### Heroku
-
-Para fazer deploy no Heroku, siga o guia completo em [HEROKU_DEPLOY.md](./HEROKU_DEPLOY.md).
-
-**Deploy rápido**:
 ```bash
-# 1. Instalar Heroku CLI
-# 2. Login no Heroku
-heroku login
+# Deploy automatizado
+./deploy-heroku.sh meu-app
 
-# 3. Usar script automatizado
-./deploy-heroku.sh meu-app-name
-
-# 4. Configurar variáveis obrigatórias
+# Configurar variáveis
 heroku config:set JWT_SECRET=$(openssl rand -base64 32)
-heroku config:set AWS_ACCESS_KEY_ID=sua_access_key
-heroku config:set AWS_SECRET_ACCESS_KEY=sua_secret_key
-heroku config:set AWS_BUCKET_NAME=seu-bucket
-heroku config:set OPENAI_API_KEY=sua_openai_key
-heroku config:set GOOGLE_OAUTH_CLIENT_ID=seu_google_client_id
-heroku config:set GOOGLE_OAUTH_CLIENT_SECRET=seu_google_client_secret
+heroku config:set DATABASE_URL=...
 ```
 
-**URLs após deploy**:
-- API: `https://seu-app.herokuapp.com`
-- Docs: `https://seu-app.herokuapp.com/docs`
-- Health: `https://seu-app.herokuapp.com/health`
+📚 **Guia completo:** [docs/deployment/heroku.md](./docs/deployment/heroku.md)
 
-### Railway (Legado)
+## 🔒 Variáveis de Ambiente
 
-O projeto estava anteriormente configurado para Railway com `railway.toml`. Para migrar para Heroku, remova o arquivo `railway.toml` e siga o guia do Heroku.
+```env
+# Database
+DATABASE_URL=postgresql://...
+
+# JWT
+JWT_SECRET=seu-secret-super-seguro
+JWT_EXPIRES_IN=7d
+
+# AWS S3
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_S3_BUCKET=...
+
+# Stripe
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Google OAuth
+GOOGLE_OAUTH_CLIENT_ID=...
+GOOGLE_OAUTH_CLIENT_SECRET=...
+```
 
 ## 🤝 Contribuindo
 
-**⚠️ PROJETO PRIVADO**: Este é um projeto interno da empresa. Contribuições são restritas apenas a funcionários autorizados.
+Para contribuir com o projeto:
 
-Para funcionários autorizados:
+1. Leia [BEST_PRACTICES.md](./BEST_PRACTICES.md)
+2. Consulte [STRUCTURE.md](./STRUCTURE.md)
+3. Veja exemplos em [EXAMPLE.ts](./EXAMPLE.ts)
+4. Crie sua branch: `git checkout -b feature/nova-feature`
+5. Execute validações: `npm run validate`
+6. Commit: `git commit -m "feat: nova feature"`
+7. Push e abra PR
 
-1. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-2. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
-3. Push para a branch (`git push origin feature/nova-feature`)
-4. Abra um Pull Request interno
+## 📊 Status do Projeto
+
+- ✅ **Arquitetura**: Clean & modular
+- ✅ **Documentação**: Completa
+- ✅ **Testes**: Cobertura alta
+- ✅ **Type Safety**: 100%
+- ✅ **Performance**: Otimizada
+- ✅ **Security**: Robusta
+
+## 📞 Suporte
+
+- 📖 **Documentação**: [docs/](./docs/)
+- 🚀 **Quick Start**: [QUICK_START.md](./QUICK_START.md)
+- 🏗️ **Estrutura**: [STRUCTURE.md](./STRUCTURE.md)
+- 📋 **Boas Práticas**: [BEST_PRACTICES.md](./BEST_PRACTICES.md)
 
 ## 📝 Licença
 
-Este projeto é **propriedade privada** da empresa. Todos os direitos reservados.
-
-**⚠️ IMPORTANTE**: Este código é confidencial e proprietário. É proibida a distribuição, cópia ou modificação sem autorização expressa da empresa.
+**PROPRIETARY** - Todos os direitos reservados.
 
 ## 👨‍💻 Autor
 
-**Hugo Queiroz** ([@hugoromerito](https://github.com/hugoromerito))
+**Hugo Queiroz** - [GitHub](https://github.com/hugoromerito)
 
 ---
 
 <div align="center">
-  <strong>⭐ Se este projeto foi útil para você, considere dar uma estrela!</strong>
+  
+**🌟 Projeto reestruturado seguindo as melhores práticas de desenvolvimento! 🌟**
+
+[Documentação](./docs) • [Quick Start](./QUICK_START.md) • [Estrutura](./STRUCTURE.md) • [Boas Práticas](./BEST_PRACTICES.md)
+
+**Versão 2.0.0** • Novembro 2025
+
 </div>
