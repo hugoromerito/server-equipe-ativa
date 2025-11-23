@@ -18,6 +18,8 @@ export const organizations = pgTable('organizations', {
   domain: text().unique(),
   should_attach_users_by_domain: boolean().default(false),
   avatar_url: text(),
+  stripe_customer_id: text(), // ID do cliente no Stripe
+  owner_email: text(), // Email do owner para Stripe
   created_at: timestamp().defaultNow().notNull(),
   updated_at: timestamp(),
   owner_id: uuid().notNull(),

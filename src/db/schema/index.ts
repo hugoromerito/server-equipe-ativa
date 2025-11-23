@@ -1,7 +1,18 @@
 export { attachments } from './attachments.ts'
 export { demandStatusAuditLog } from './audit.ts'
 export { accounts, tokens, users } from './auth.ts'
-export { billings } from './billings.ts'
+export {
+  billings,
+  paymentMethods,
+  payments,
+  plans,
+  subscriptions,
+  usageRecords,
+  planIntervalEnum,
+  subscriptionStatusEnum,
+  paymentStatusEnum,
+  paymentMethodTypeEnum,
+} from './billings.ts'
 export { applicants, demands } from './demands.ts'
 export {
   accountProviderEnum,

@@ -1,6 +1,13 @@
 import { relations } from 'drizzle-orm'
 import { attachments } from './attachments.ts'
 import { accounts, tokens, users } from './auth.ts'
+import {
+  paymentMethods,
+  payments,
+  plans,
+  subscriptions,
+  usageRecords,
+} from './billings.ts'
 import { applicants, demands } from './demands.ts'
 import { jobTitles } from './job-titles.ts'
 import { invites, members, organizations, units } from './organization.ts'
@@ -112,6 +119,8 @@ export const organizationsRelations = relations(
     applicants: many(applicants),
     attachments: many(attachments),
     jobTitles: many(jobTitles),
+    subscriptions: many(subscriptions),
+    paymentMethods: many(paymentMethods),
   })
 )
 
@@ -176,5 +185,49 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
     relationName: 'uploadedAttachments',
     fields: [attachments.uploaded_by],
     references: [users.id],
+  }),
+}))
+
+// Relações de Billing
+export const plansRelations = relations(plans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}))
+
+export const subscriptionsRelations = relations(subscriptions, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [subscriptions.organization_id],
+    references: [organizations.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.plan_id],
+    references: [plans.id],
+  }),
+  payments: many(payments),
+  usageRecords: many(usageRecords),
+}))
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  subscription: one(subscriptions, {
+    fields: [payments.subscription_id],
+    references: [subscriptions.id],
+  }),
+  paymentMethod: one(paymentMethods, {
+    fields: [payments.payment_method_id],
+    references: [paymentMethods.id],
+  }),
+}))
+
+export const paymentMethodsRelations = relations(paymentMethods, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [paymentMethods.organization_id],
+    references: [organizations.id],
+  }),
+  payments: many(payments),
+}))
+
+export const usageRecordsRelations = relations(usageRecords, ({ one }) => ({
+  subscription: one(subscriptions, {
+    fields: [usageRecords.subscription_id],
+    references: [subscriptions.id],
   }),
 }))
