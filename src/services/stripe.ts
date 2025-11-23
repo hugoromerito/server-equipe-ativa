@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { env } from '../config/env.js'
+import { env } from '../config/env.ts'
 
 // Inicializa o cliente Stripe
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {

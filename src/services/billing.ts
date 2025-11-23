@@ -1,21 +1,21 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
-import { db } from '../db/connection.js'
+import { db } from '../db/connection.ts'
 import {
   paymentMethods,
   payments,
   plans,
   subscriptions,
   usageRecords,
-} from '../db/schema/billings.js'
-import { organizations } from '../db/schema/organization.js'
-import { stripeService } from './stripe.js'
+} from '../db/schema/billings.ts'
+import { organizations } from '../db/schema/organization.ts'
+import { stripeService } from './stripe.ts'
 import type {
   CreatePaymentMethod,
   CreateSubscription,
   CreateUsageRecord,
   UpdatePaymentMethod,
   UpdateSubscription,
-} from '../http/schemas/billing-schemas.js'
+} from '../http/schemas/billing-schemas.ts'
 
 export class BillingService {
   /**

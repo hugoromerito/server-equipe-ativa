@@ -1,5 +1,5 @@
-import { db } from './connection.js'
-import { plans } from './schema/billings.js'
+import { db } from './connection.ts'
+import { plans } from './schema/billings.ts'
 
 /**
  * Seed inicial para criar planos de assinatura
