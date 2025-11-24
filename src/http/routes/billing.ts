@@ -242,17 +242,21 @@ export async function billingRoutes(app: FastifyInstance) {
           params: z.object({
             organizationId: z.string().uuid(),
           }),
-          response: {
-            200: z.object({
-              subscription: subscriptionWithPlanResponseSchema.nullable(),
-            }),
-          },
         },
       },
       async (request, reply) => {
-        const { organizationId } = request.params as any
-        const subscription = await billingService.getActiveSubscription(organizationId)
-        return reply.status(200).send({ subscription })
+        try {
+          const { organizationId } = request.params as any
+          const subscription = await billingService.getActiveSubscription(organizationId)
+          return reply.status(200).send({ subscription })
+        } catch (error) {
+          request.log.error('Erro ao buscar assinatura')
+          console.error(error)
+          return reply.code(500).send({ 
+            message: 'Erro ao buscar assinatura',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
       }
     )
 
@@ -373,17 +377,21 @@ export async function billingRoutes(app: FastifyInstance) {
           params: z.object({
             organizationId: z.string().uuid(),
           }),
-          response: {
-            200: z.object({
-              payment_methods: z.array(paymentMethodResponseSchema),
-            }),
-          },
         },
       },
       async (request, reply) => {
-        const { organizationId } = request.params as any
-        const paymentMethods = await billingService.listPaymentMethods(organizationId)
-        return reply.status(200).send({ payment_methods: paymentMethods })
+        try {
+          const { organizationId } = request.params as any
+          const paymentMethods = await billingService.listPaymentMethods(organizationId)
+          return reply.status(200).send({ payment_methods: paymentMethods })
+        } catch (error) {
+          request.log.error('Erro ao listar métodos de pagamento')
+          console.error(error)
+          return reply.code(500).send({ 
+            message: 'Erro ao listar métodos de pagamento',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
       }
     )
 

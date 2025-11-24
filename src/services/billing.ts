@@ -234,25 +234,37 @@ export class BillingService {
    * Obtém assinatura ativa de uma organização
    */
   async getActiveSubscription(organizationId: string) {
-    return await db.query.subscriptions.findFirst({
-      where: and(
-        eq(subscriptions.organization_id, organizationId),
-        eq(subscriptions.status, 'active')
-      ),
-      with: {
-        plan: true,
-      },
-    })
+    try {
+      const subscription = await db.query.subscriptions.findFirst({
+        where: and(
+          eq(subscriptions.organization_id, organizationId),
+          eq(subscriptions.status, 'active')
+        ),
+        with: {
+          plan: true,
+        },
+      })
+      
+      return subscription || null
+    } catch (error) {
+      console.error('Erro ao buscar assinatura ativa:', error)
+      return null
+    }
   }
 
   /**
    * Lista métodos de pagamento de uma organização
    */
   async listPaymentMethods(organizationId: string) {
-    return await db.query.paymentMethods.findMany({
-      where: eq(paymentMethods.organization_id, organizationId),
-      orderBy: [desc(paymentMethods.is_default), desc(paymentMethods.created_at)],
-    })
+    try {
+      return await db.query.paymentMethods.findMany({
+        where: eq(paymentMethods.organization_id, organizationId),
+        orderBy: [desc(paymentMethods.is_default), desc(paymentMethods.created_at)],
+      })
+    } catch (error) {
+      console.error('Erro ao listar métodos de pagamento:', error)
+      return []
+    }
   }
 
   /**
