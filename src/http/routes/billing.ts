@@ -681,99 +681,91 @@ export async function billingRoutes(app: FastifyInstance) {
 
   /**
    * Cria uma Checkout Session (modo hospedado pelo Stripe)
+   * Recebe o price_id diretamente do Stripe (da listagem /plans)
    */
   app
     .withTypeProvider<ZodTypeProvider>()
     .post(
-      '/stripe/create-checkout-session',
+      '/checkout',
       {
         preHandler: [authPreHandler],
         schema: {
           tags: ['Billing'],
-          summary: 'Cria sessão de checkout hospedado',
+          summary: 'Cria sessão de checkout',
           security: [{ bearerAuth: [] }],
           body: z.object({
             organization_id: z.string().uuid(),
-            plan_id: z.string().uuid(),
+            price_id: z.string(), // ID do price do Stripe (ex: price_xxxxx)
             success_url: z.string().url(),
             cancel_url: z.string().url(),
           }),
-          response: {
-            200: z.object({
-              checkout_url: z.string(),
-              session_id: z.string(),
-            }),
-          },
         },
       },
       async (request, reply) => {
-        const { organization_id, plan_id, success_url, cancel_url } = request.body as any
-        const { stripeService } = await import('../../services/stripe.ts')
-        const { db } = await import('../../db/connection.ts')
-        const { organizations } = await import('../../db/schema/organization.ts')
-        const { plans } = await import('../../db/schema/billings.ts')
-        const { eq } = await import('drizzle-orm')
-
-        // Busca organização e plano
-        const [org, plan] = await Promise.all([
-          db.query.organizations.findFirst({
-            where: eq(organizations.id, organization_id),
-          }),
-          db.query.plans.findFirst({
-            where: eq(plans.id, plan_id),
-          }),
-        ])
-
-        if (!org) {
-          return reply.status(404 as any).send({ message: 'Organização não encontrada' })
-        }
-        if (!plan) {
-          return reply.status(404 as any).send({ message: 'Plano não encontrado' })
-        }
-        if (!plan.stripe_price_id) {
-          return reply.status(400 as any).send({ message: 'Plano não tem preço configurado no Stripe' })
-        }
-
-        // Cria ou obtém customer
-        let customerId = org.stripe_customer_id
-        if (!customerId) {
-          const customer = await stripeService.createCustomer({
-            email: org.owner_email || 'contato@equipeativa.com',
-            name: org.name,
-            metadata: { organization_id: org.id },
+        try {
+          const { organization_id, price_id, success_url, cancel_url } = request.body as any
+          
+          const Stripe = (await import('stripe')).default
+          const { env } = await import('../../config/env.ts')
+          const { db } = await import('../../db/connection.ts')
+          const { organizations } = await import('../../db/schema/organization.ts')
+          const { eq } = await import('drizzle-orm')
+          
+          const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+            apiVersion: '2025-02-24.acacia',
           })
-          customerId = customer.id
 
-          await db
-            .update(organizations)
-            .set({ stripe_customer_id: customerId })
-            .where(eq(organizations.id, org.id))
-        }
+          // Busca organização
+          const org = await db.query.organizations.findFirst({
+            where: eq(organizations.id, organization_id),
+          })
 
-        // Cria Checkout Session
-        const session = await stripeService.createCheckoutSession({
-          customer: customerId,
-          line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
-          mode: 'subscription',
-          success_url,
-          cancel_url,
-          metadata: {
-            organization_id,
-            plan_id,
-          },
-          subscription_data: {
-            trial_period_days: plan.trial_days || 0,
+          if (!org) {
+            return reply.status(404).send({ message: 'Organização não encontrada' })
+          }
+
+          // Cria ou obtém customer no Stripe
+          let customerId = org.stripe_customer_id
+          if (!customerId) {
+            const customer = await stripe.customers.create({
+              email: org.owner_email || 'contato@equipeativa.com',
+              name: org.name,
+              metadata: { organization_id: org.id },
+            })
+            customerId = customer.id
+
+            await db
+              .update(organizations)
+              .set({ stripe_customer_id: customerId })
+              .where(eq(organizations.id, org.id))
+          }
+
+          // Cria Checkout Session
+          const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: [{ price: price_id, quantity: 1 }],
+            mode: 'subscription',
+            success_url,
+            cancel_url,
             metadata: {
               organization_id,
-              plan_id,
             },
-          },
-        })
+            allow_promotion_codes: true,
+            billing_address_collection: 'auto',
+            locale: 'pt-BR',
+          })
 
-        return reply.status(200).send({
-          checkout_url: session.url as string,
-          session_id: session.id,
-        })
+          return reply.status(200).send({
+            checkout_url: session.url,
+            session_id: session.id,
+          })
+        } catch (error) {
+          console.error('Erro ao criar checkout:', error)
+          return reply.status(500).send({ 
+            message: 'Erro ao criar sessão de checkout',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
       }
     )
 
