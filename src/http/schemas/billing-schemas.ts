@@ -150,8 +150,10 @@ export const planResponseSchema = z.object({
   max_demands: z.number().nullable(),
   max_storage_gb: z.number().nullable(),
   is_active: z.boolean(),
-  created_at: z.date(),
-  updated_at: z.date().nullable(),
+  stripe_product_id: z.string().nullable().optional(),
+  stripe_price_id: z.string().nullable().optional(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime().nullable(),
 })
 
 export const subscriptionResponseSchema = z.object({
@@ -159,13 +161,15 @@ export const subscriptionResponseSchema = z.object({
   organization_id: z.string().uuid(),
   plan_id: z.string().uuid(),
   status: subscriptionStatusSchema,
-  current_period_start: z.date(),
-  current_period_end: z.date(),
-  trial_end: z.date().nullable(),
-  canceled_at: z.date().nullable(),
-  ended_at: z.date().nullable(),
-  created_at: z.date(),
-  updated_at: z.date().nullable(),
+  current_period_start: z.string().datetime(),
+  current_period_end: z.string().datetime(),
+  trial_end: z.string().datetime().nullable(),
+  canceled_at: z.string().datetime().nullable(),
+  ended_at: z.string().datetime().nullable(),
+  stripe_subscription_id: z.string().nullable().optional(),
+  stripe_customer_id: z.string().nullable().optional(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime().nullable(),
 })
 
 export const paymentMethodResponseSchema = z.object({
@@ -177,7 +181,8 @@ export const paymentMethodResponseSchema = z.object({
   card_last4: z.string().nullable(),
   card_exp_month: z.number().nullable(),
   card_exp_year: z.number().nullable(),
-  created_at: z.date(),
+  stripe_payment_method_id: z.string().nullable().optional(),
+  created_at: z.string().datetime(),
 })
 
 export const paymentResponseSchema = z.object({
@@ -188,9 +193,10 @@ export const paymentResponseSchema = z.object({
   status: paymentStatusSchema,
   payment_method_id: z.string().uuid().nullable(),
   failure_reason: z.string().nullable(),
-  paid_at: z.date().nullable(),
-  refunded_at: z.date().nullable(),
-  created_at: z.date(),
+  paid_at: z.string().datetime().nullable(),
+  refunded_at: z.string().datetime().nullable(),
+  stripe_payment_intent_id: z.string().nullable().optional(),
+  created_at: z.string().datetime(),
 })
 
 // Type exports
