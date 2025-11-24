@@ -29,23 +29,13 @@ export class UsageTrackingService {
       .where(eq(units.organization_id, organizationId))
     const unitsCount = unitsResult[0]?.count || 0
 
-    // Conta demandas do período atual (mês)
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
+    // Conta applicants (solicitantes) da organização
     const { applicants } = await import('../db/schema/demands.ts')
-    const demandsResult = await db
+    const applicantsResult = await db
       .select({ count: sql<number>`cast(count(*) as integer)` })
-      .from(demands)
-      .innerJoin(applicants, eq(demands.applicant_id, applicants.id))
-      .where(
-        and(
-          eq(applicants.organization_id, organizationId),
-          gte(demands.created_at, startOfMonth)
-        )
-      )
-    const demandsCount = demandsResult[0]?.count || 0
+      .from(applicants)
+      .where(eq(applicants.organization_id, organizationId))
+    const applicantsCount = applicantsResult[0]?.count || 0
 
     // TODO: Calcular storage usado (soma de attachments)
     const storageUsedGB = 0
@@ -53,7 +43,7 @@ export class UsageTrackingService {
     return {
       members_count: membersCount,
       units_count: unitsCount,
-      demands_count: demandsCount,
+      applicants_count: applicantsCount,
       storage_used_gb: storageUsedGB.toFixed(2),
     }
   }
@@ -146,7 +136,7 @@ export class UsageTrackingService {
    */
   async canCreateResource(
     organizationId: string,
-    resourceType: 'member' | 'unit' | 'demand'
+    resourceType: 'member' | 'unit' | 'applicant'
   ): Promise<{
     allowed: boolean
     reason?: string
@@ -197,25 +187,15 @@ export class UsageTrackingService {
         }
         break
 
-      case 'demand':
-        limit = plan.max_demands
+      case 'applicant':
+        limit = plan.max_applicants
         if (limit !== null) {
-          // Conta demandas do mês atual
-          const startOfMonth = new Date()
-          startOfMonth.setDate(1)
-          startOfMonth.setHours(0, 0, 0, 0)
-
+          // Conta applicants (solicitantes) da organização
           const { applicants } = await import('../db/schema/demands.ts')
           const result = await db
             .select({ count: sql<number>`cast(count(*) as integer)` })
-            .from(demands)
-            .innerJoin(applicants, eq(demands.applicant_id, applicants.id))
-            .where(
-              and(
-                eq(applicants.organization_id, organizationId),
-                gte(demands.created_at, startOfMonth)
-              )
-            )
+            .from(applicants)
+            .where(eq(applicants.organization_id, organizationId))
           currentCount = result[0]?.count || 0
         }
         break
@@ -287,7 +267,7 @@ export class UsageTrackingService {
     const productName = product.name
     const max_members = metadata.max_members ? parseInt(metadata.max_members) : null
     const max_units = metadata.max_units ? parseInt(metadata.max_units) : null
-    const max_demands = metadata.max_demands ? parseInt(metadata.max_demands) : null
+    const max_applicants = metadata.max_applicants ? parseInt(metadata.max_applicants) : null
     const max_storage_gb = metadata.max_storage_gb ? parseInt(metadata.max_storage_gb) : null
 
     // Calcula uso atual
@@ -310,11 +290,11 @@ export class UsageTrackingService {
           ? Math.round((usage.units_count / max_units) * 100)
           : 0,
       },
-      demands: {
-        current: usage.demands_count,
-        limit: max_demands,
-        percentage: max_demands
-          ? Math.round((usage.demands_count / max_demands) * 100)
+      applicants: {
+        current: usage.applicants_count,
+        limit: max_applicants,
+        percentage: max_applicants
+          ? Math.round((usage.applicants_count / max_applicants) * 100)
           : 0,
       },
       storage: {

@@ -43,7 +43,7 @@ export async function requireActiveSubscription(
  * Middleware para verificar limites de recursos do plano
  * Verifica em tempo real contando direto do banco de dados
  */
-export function checkResourceLimit(resourceType: 'member' | 'unit' | 'demand') {
+export function checkResourceLimit(resourceType: 'member' | 'unit' | 'applicant') {
   return async (
     request: FastifyRequest<{ Params: { organizationId: string } }>,
     reply: FastifyReply
@@ -126,7 +126,7 @@ export async function checkStorageLimit(
  */
 export async function canCreateResource(
   organizationId: string,
-  resourceType: 'member' | 'unit' | 'demand'
+  resourceType: 'member' | 'unit' | 'applicant'
 ): Promise<{ allowed: boolean; reason?: string; current?: number; limit?: number }> {
   return await usageTrackingService.canCreateResource(organizationId, resourceType)
 }

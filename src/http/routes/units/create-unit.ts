@@ -86,6 +86,15 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
           throw new ForbiddenError('Apenas administradores podem criar unidades.')
         }
 
+        // Verificar limite de unidades do plano
+        const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
+        const limitCheck = await usageTrackingService.checkResourceLimit(organization.id, 'unit')
+        
+        if (!limitCheck.allowed) {
+          logger.warn(`Limite de unidades atingido para organização ${organizationSlug}: ${limitCheck.reason}`)
+          throw new ForbiddenError(limitCheck.reason || 'Limite de unidades atingido.')
+        }
+
         // Gerar slug da unidade
         const unitSlug = createSlug(name)
 

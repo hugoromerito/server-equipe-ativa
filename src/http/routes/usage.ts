@@ -65,7 +65,7 @@ export async function usageRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { organizationId, resourceType } = request.params as {
       organizationId: string
-      resourceType: 'member' | 'unit' | 'demand'
+      resourceType: 'member' | 'unit' | 'applicant'
     }
 
     const result = await usageTrackingService.canCreateResource(organizationId, resourceType)

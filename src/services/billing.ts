@@ -394,48 +394,6 @@ export class BillingService {
       },
     }
   }
-
-  /**
-   * Verifica se a organização pode criar mais recursos
-   */
-  async canCreateResource(
-    organizationId: string,
-    resourceType: 'member' | 'unit' | 'demand'
-  ): Promise<{ allowed: boolean; reason?: string }> {
-    const subscription = await this.getActiveSubscription(organizationId)
-
-    if (!subscription) {
-      return { allowed: false, reason: 'Nenhuma assinatura ativa' }
-    }
-
-    const usage = await this.getCurrentUsage(subscription.id)
-    const limits = usage.limits
-    const currentUsage = usage.usage
-
-    if (!currentUsage) {
-      return { allowed: true }
-    }
-
-    switch (resourceType) {
-      case 'member':
-        if (limits.max_members && currentUsage.members_count >= limits.max_members) {
-          return { allowed: false, reason: 'Limite de membros atingido' }
-        }
-        break
-      case 'unit':
-        if (limits.max_units && currentUsage.units_count >= limits.max_units) {
-          return { allowed: false, reason: 'Limite de unidades atingido' }
-        }
-        break
-      case 'demand':
-        if (limits.max_demands && currentUsage.demands_count >= limits.max_demands) {
-          return { allowed: false, reason: 'Limite de demandas atingido' }
-        }
-        break
-    }
-
-    return { allowed: true }
-  }
 }
 
 export const billingService = new BillingService()

@@ -159,6 +159,15 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
           )
         }
 
+        // Verificar limite de applicants (solicitantes) do plano
+        const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
+        const limitCheck = await usageTrackingService.checkResourceLimit(unit.organizationId, 'applicant')
+        
+        if (!limitCheck.allowed) {
+          logger.warn(`Limite de solicitantes atingido para organização ${organizationSlug}: ${limitCheck.reason}`)
+          throw new ForbiddenError(limitCheck.reason || 'Limite de solicitantes atingido.')
+        }
+
         // Buscar solicitante
         const [applicant] = await db
           .select({

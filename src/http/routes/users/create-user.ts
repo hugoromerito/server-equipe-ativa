@@ -105,11 +105,19 @@ export const createUserRoute: FastifyPluginCallbackZod = (app) => {
         // Se há organização para auto-vinculação, adicionar o usuário
         if (autoJoinOrganization) {
           try {
-            await db.insert(members).values({
-              user_id: newUser.id,
-              organization_id: autoJoinOrganization.id,
-            })
-            logger.info(`Usuário ${newUser.id} adicionado automaticamente à organização ${autoJoinOrganization.id}`)
+            // Verificar limite de membros do plano
+            const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
+            const limitCheck = await usageTrackingService.checkResourceLimit(autoJoinOrganization.id, 'member')
+            
+            if (limitCheck.allowed) {
+              await db.insert(members).values({
+                user_id: newUser.id,
+                organization_id: autoJoinOrganization.id,
+              })
+              logger.info(`Usuário ${newUser.id} adicionado automaticamente à organização ${autoJoinOrganization.id}`)
+            } else {
+              logger.warn(`Limite de membros atingido para organização ${autoJoinOrganization.id}. Usuário ${newUser.id} não foi adicionado automaticamente.`)
+            }
           } catch (error) {
             // Log do erro mas não falha a criação do usuário
             logger.error(`Falha ao adicionar usuário ${newUser.id} à organização ${autoJoinOrganization.id}:`, {

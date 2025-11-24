@@ -73,6 +73,15 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
         throw new BadRequestError('Você já é membro desta organização/unidade.')
       }
 
+      // Verificar limite de membros do plano
+      const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
+      const limitCheck = await usageTrackingService.checkResourceLimit(invite[0].organization_id, 'member')
+      
+      if (!limitCheck.allowed) {
+        logger.warn(`Limite de membros atingido para organização ${invite[0].organization_id}: ${limitCheck.reason}`)
+        throw new ForbiddenError(limitCheck.reason || 'Limite de membros atingido.')
+      }
+
       await db.transaction(async (tx) => {
         await tx.insert(members).values({
           user_id: userId,
