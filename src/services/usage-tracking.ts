@@ -245,131 +245,73 @@ export class UsageTrackingService {
    * Obtém estatísticas de uso para exibir no dashboard
    */
   async getUsageStats(organizationId: string) {
-    // Busca assinatura no banco local
-    let subscription = await db.query.subscriptions.findFirst({
-      where: and(
-        eq(subscriptions.organization_id, organizationId),
-        sql`${subscriptions.status} IN ('active', 'trialing')`
-      ),
-      with: { plan: true },
+    // Busca organização
+    const { organizations } = await import('../db/schema/organization.ts')
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, organizationId),
     })
 
-    // Se não encontrou no banco, busca no Stripe e cria/atualiza no banco
-    if (!subscription) {
-      // Importa Stripe dinamicamente
-      const Stripe = (await import('stripe')).default
-      const { env } = await import('../config/env.ts')
-      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-        apiVersion: '2025-02-24.acacia',
-      })
+    if (!org || !org.stripe_customer_id) {
+      return null
+    }
 
-      // Busca organização para pegar email/customer
-      const org = await db.query.organizations.findFirst({
-        where: eq(subscriptions.organization_id, organizationId),
-      })
+    // Busca assinatura no Stripe
+    const Stripe = (await import('stripe')).default
+    const { env } = await import('../config/env.ts')
+    const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-02-24.acacia',
+    })
 
-      if (!org) {
-        return null
-      }
+    // Busca assinaturas ativas do customer
+    const stripeSubscriptions = await stripe.subscriptions.list({
+      customer: org.stripe_customer_id,
+      status: 'active',
+      expand: ['data.items.data.price'],
+    })
 
-      // Busca customer no Stripe pelo email
-      // TODO: Você deveria salvar o customer_id na organização
-      const customers = await stripe.customers.list({
-        email: org.owner_id, // Assumindo que owner_id é o email
-        limit: 1,
-      })
+    if (stripeSubscriptions.data.length === 0) {
+      return null
+    }
 
-      if (customers.data.length === 0) {
-        return null
-      }
+    const stripeSub = stripeSubscriptions.data[0]
+    const priceId = stripeSub.items.data[0].price.id
 
-      // Busca assinaturas ativas do customer
-      const stripeSubscriptions = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        status: 'active',
-        expand: ['data.items.data.price'],
-      })
+    // Busca plano no banco pelo stripe_price_id
+    const { plans } = await import('../db/schema/billings.ts')
+    const allPlans = await db.query.plans.findMany()
+    const plan = allPlans.find(p => p.stripe_price_id === priceId)
 
-      if (stripeSubscriptions.data.length === 0) {
-        return null
-      }
+    // Calcula uso atual
+    const usage = await this.calculateCurrentUsage(organizationId)
 
-      const stripeSub = stripeSubscriptions.data[0]
-      const price = stripeSub.items.data[0].price
-
-      // Busca ou cria plano baseado no stripe_price_id
-      const allPlans = await db.query.plans.findMany()
-      let plan = allPlans.find(p => p.stripe_price_id === price.id)
-
-      // Se não tem plano com esse price_id, usa valores padrão
-      if (!plan) {
-        // Retorna estatísticas com limites padrão enquanto não sincroniza
-        const usage = await this.calculateCurrentUsage(organizationId)
-        return {
-          plan_name: 'Plano Ativo (Stripe)',
-          members: {
-            current: usage.members_count,
-            limit: null, // Ilimitado por padrão
-            percentage: 0,
-          },
-          units: {
-            current: usage.units_count,
-            limit: null,
-            percentage: 0,
-          },
-          demands: {
-            current: usage.demands_count,
-            limit: null,
-            percentage: 0,
-          },
-          storage: {
-            current: parseFloat(usage.storage_used_gb),
-            limit: null,
-            percentage: 0,
-          },
-        }
-      }
-
-      // Usa o plano encontrado do Stripe
-      const usage = await this.calculateCurrentUsage(organizationId)
-
+    // Se não encontrou o plano, retorna sem limites
+    if (!plan) {
       return {
-        plan_name: plan.name,
+        plan_name: 'Plano Ativo',
         members: {
           current: usage.members_count,
-          limit: plan.max_members,
-          percentage: plan.max_members
-            ? Math.round((usage.members_count / plan.max_members) * 100)
-            : 0,
+          limit: null,
+          percentage: 0,
         },
         units: {
           current: usage.units_count,
-          limit: plan.max_units,
-          percentage: plan.max_units
-            ? Math.round((usage.units_count / plan.max_units) * 100)
-            : 0,
+          limit: null,
+          percentage: 0,
         },
         demands: {
           current: usage.demands_count,
-          limit: plan.max_demands,
-          percentage: plan.max_demands
-            ? Math.round((usage.demands_count / plan.max_demands) * 100)
-            : 0,
+          limit: null,
+          percentage: 0,
         },
         storage: {
           current: parseFloat(usage.storage_used_gb),
-          limit: plan.max_storage_gb,
-          percentage: plan.max_storage_gb
-            ? Math.round((parseFloat(usage.storage_used_gb) / plan.max_storage_gb) * 100)
-            : 0,
+          limit: null,
+          percentage: 0,
         },
       }
     }
 
-    // Se encontrou assinatura no banco, usa ela
-    const usage = await this.calculateCurrentUsage(organizationId)
-    const plan = subscription.plan
-
+    // Retorna com os limites do plano
     return {
       plan_name: plan.name,
       members: {
