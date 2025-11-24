@@ -12,6 +12,7 @@ import {
   updatePaymentMethodSchema,
   planResponseSchema,
   subscriptionResponseSchema,
+  subscriptionWithPlanResponseSchema,
   paymentMethodResponseSchema,
   paymentResponseSchema,
 } from '../schemas/billing-schemas.ts'
@@ -190,9 +191,7 @@ export async function billingRoutes(app: FastifyInstance) {
           }),
           response: {
             200: z.object({
-              subscription: subscriptionResponseSchema.extend({
-                plan: planResponseSchema,
-              }).nullable(),
+              subscription: subscriptionWithPlanResponseSchema.nullable(),
             }),
           },
         },
@@ -268,9 +267,7 @@ export async function billingRoutes(app: FastifyInstance) {
           response: {
             200: z.object({
               usage: z.object({
-                subscription: subscriptionResponseSchema.extend({
-                  plan: planResponseSchema,
-                }),
+                subscription: subscriptionWithPlanResponseSchema,
                 usage: z
                   .object({
                     members_count: z.number(),

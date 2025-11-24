@@ -199,6 +199,24 @@ export const paymentResponseSchema = z.object({
   created_at: z.string().datetime(),
 })
 
+// Schema combinado para subscription com plan
+export const subscriptionWithPlanResponseSchema = z.object({
+  id: z.string().uuid(),
+  organization_id: z.string().uuid(),
+  plan_id: z.string().uuid(),
+  status: subscriptionStatusSchema,
+  current_period_start: z.string().datetime(),
+  current_period_end: z.string().datetime(),
+  trial_end: z.string().datetime().nullable(),
+  canceled_at: z.string().datetime().nullable(),
+  ended_at: z.string().datetime().nullable(),
+  stripe_subscription_id: z.string().nullable().optional(),
+  stripe_customer_id: z.string().nullable().optional(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime().nullable(),
+  plan: planResponseSchema,
+})
+
 // Type exports
 export type CreatePlan = z.infer<typeof createPlanSchema>
 export type UpdatePlan = z.infer<typeof updatePlanSchema>
