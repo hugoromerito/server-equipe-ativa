@@ -145,32 +145,53 @@ export async function billingRoutes(app: FastifyInstance) {
 
       // Processa eventos importantes
       switch (event.type) {
-        case 'checkout.session.completed':
+        case 'checkout.session.completed': {
           const session = event.data.object
           console.log('💳 Checkout completo:', session.id, session.customer_email)
-          // Aqui você pode salvar no banco, enviar email, etc
+          
+          // Atualiza organização com stripe_customer_id
+          if (session.customer && session.metadata?.organizationId) {
+            const { db } = await import('../../db/connection.ts')
+            const { organizations } = await import('../../db/schema/organization.ts')
+            const { eq } = await import('drizzle-orm')
+            
+            await db
+              .update(organizations)
+              .set({ 
+                stripe_customer_id: session.customer as string,
+                owner_email: session.customer_email as string,
+              })
+              .where(eq(organizations.id, session.metadata.organizationId))
+            
+            console.log('✅ Organization updated with stripe_customer_id:', session.customer)
+          }
           break
+        }
 
         case 'customer.subscription.created':
-        case 'customer.subscription.updated':
+        case 'customer.subscription.updated': {
           const subscription = event.data.object
           console.log('📝 Assinatura atualizada:', subscription.id, subscription.status)
           break
+        }
 
-        case 'customer.subscription.deleted':
+        case 'customer.subscription.deleted': {
           const deletedSub = event.data.object
           console.log('❌ Assinatura cancelada:', deletedSub.id)
           break
+        }
 
-        case 'invoice.payment_succeeded':
+        case 'invoice.payment_succeeded': {
           const invoice = event.data.object
           console.log('✅ Pagamento bem-sucedido:', invoice.id)
           break
+        }
 
-        case 'invoice.payment_failed':
+        case 'invoice.payment_failed': {
           const failedInvoice = event.data.object
           console.log('⚠️  Pagamento falhou:', failedInvoice.id)
           break
+        }
       }
 
       return reply.send({ received: true })
@@ -307,6 +328,115 @@ export async function billingRoutes(app: FastifyInstance) {
       console.error('Erro ao criar portal:', error)
       return reply.code(500).send({ 
         error: error instanceof Error ? error.message : 'Erro ao criar portal'
+      })
+    }
+  })
+
+  /**
+   * Atualiza stripe_customer_id de uma organização (rota admin temporária)
+   */
+  app.post('/admin/organizations/:organizationId/sync-stripe', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { organizationId } = request.params as { organizationId: string }
+      const { customerEmail } = request.body as { customerEmail: string }
+
+      if (!customerEmail) {
+        return reply.code(400).send({ error: 'customerEmail é obrigatório' })
+      }
+
+      // Busca customer no Stripe
+      const customers = await stripe.customers.list({
+        email: customerEmail,
+        limit: 1,
+      })
+
+      if (customers.data.length === 0) {
+        return reply.code(404).send({ error: 'Customer não encontrado no Stripe' })
+      }
+
+      const customerId = customers.data[0].id
+
+      // Atualiza organização
+      const { db } = await import('../../db/connection.ts')
+      const { organizations } = await import('../../db/schema/organization.ts')
+      const { eq } = await import('drizzle-orm')
+
+      await db
+        .update(organizations)
+        .set({ 
+          stripe_customer_id: customerId,
+          owner_email: customerEmail,
+        })
+        .where(eq(organizations.id, organizationId))
+
+      return reply.send({ 
+        success: true,
+        customerId,
+        message: 'Organização sincronizada com Stripe'
+      })
+    } catch (error) {
+      console.error('Erro ao sincronizar:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao sincronizar'
+      })
+    }
+  })
+
+  /**
+   * Verifica stripe_customer_id de uma organização (debug)
+   */
+  app.get('/admin/organizations/:organizationId/stripe-info', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { organizationId } = request.params as { organizationId: string }
+
+      const { db } = await import('../../db/connection.ts')
+      const { organizations } = await import('../../db/schema/organization.ts')
+      const { eq } = await import('drizzle-orm')
+
+      const org = await db.query.organizations.findFirst({
+        where: eq(organizations.id, organizationId),
+      })
+
+      if (!org) {
+        return reply.code(404).send({ error: 'Organização não encontrada' })
+      }
+
+      // Se tem customer_id, busca info no Stripe
+      let stripeInfo = null
+      if (org.stripe_customer_id) {
+        try {
+          const customer = await stripe.customers.retrieve(org.stripe_customer_id)
+          const subscriptions = await stripe.subscriptions.list({
+            customer: org.stripe_customer_id,
+            limit: 10,
+          })
+          
+          stripeInfo = {
+            customer,
+            subscriptions: subscriptions.data,
+          }
+        } catch (error) {
+          stripeInfo = { error: 'Erro ao buscar dados do Stripe' }
+        }
+      }
+
+      return reply.send({
+        organization: {
+          id: org.id,
+          name: org.name,
+          stripe_customer_id: org.stripe_customer_id,
+          owner_email: org.owner_email,
+        },
+        stripe: stripeInfo,
+      })
+    } catch (error) {
+      console.error('Erro ao buscar info:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao buscar info'
       })
     }
   })

@@ -207,10 +207,9 @@ export class UsageTrackingService {
           const result = await db
             .select({ count: sql<number>`cast(count(*) as integer)` })
             .from(demands)
-            .innerJoin(units, eq(demands.unit_id, units.id))
             .where(
               and(
-                eq(units.organization_id, organizationId),
+                eq(demands.organization_id, organizationId),
                 sql`${demands.created_at} >= ${startOfMonth}`
               )
             )

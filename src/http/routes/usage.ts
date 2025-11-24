@@ -15,16 +15,24 @@ export async function usageRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { organizationId } = request.params as { organizationId: string }
 
-    const stats = await usageTrackingService.getUsageStats(organizationId)
+    try {
+      const stats = await usageTrackingService.getUsageStats(organizationId)
 
-    if (!stats) {
-      return reply.code(404).send({
-        message: 'Organização não possui assinatura ativa',
-        code: 'NO_ACTIVE_SUBSCRIPTION',
+      if (!stats) {
+        return reply.code(404).send({
+          message: 'Organização não possui assinatura ativa',
+          code: 'NO_ACTIVE_SUBSCRIPTION',
+        })
+      }
+
+      return reply.send(stats)
+    } catch (error) {
+      console.error('Error getting usage stats:', error)
+      return reply.code(500).send({
+        message: error instanceof Error ? error.message : 'Erro ao buscar estatísticas',
+        code: 'INTERNAL_ERROR',
       })
     }
-
-    return reply.send(stats)
   })
 
   /**
