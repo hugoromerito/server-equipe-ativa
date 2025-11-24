@@ -21,6 +21,79 @@ export async function billingRoutes(app: FastifyInstance) {
   // =============== PLANS ===============
 
   /**
+   * Lista todos os planos disponíveis do Stripe (fonte oficial)
+   */
+  app
+    .withTypeProvider<ZodTypeProvider>()
+    .get(
+      '/stripe/products',
+      {
+        schema: {
+          tags: ['Billing'],
+          summary: 'Lista produtos/planos do Stripe',
+          description: 'Busca os planos diretamente do Stripe (sempre atualizado)',
+          response: {
+            200: z.object({
+              products: z.array(z.object({
+                id: z.string(),
+                name: z.string(),
+                description: z.string().nullable(),
+                active: z.boolean(),
+                metadata: z.record(z.string()),
+                default_price: z.object({
+                  id: z.string(),
+                  unit_amount: z.number().nullable(),
+                  currency: z.string(),
+                  recurring: z.object({
+                    interval: z.enum(['day', 'week', 'month', 'year']),
+                    interval_count: z.number(),
+                  }).nullable(),
+                }).nullable(),
+              })),
+            }),
+          },
+        },
+      },
+      async (request, reply) => {
+        try {
+          const { stripeService } = await import('../../services/stripe.ts')
+          const products = await stripeService.listProducts({ active: true })
+          
+          // Formatar resposta
+          const formattedProducts = products.map(product => ({
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            active: product.active,
+            metadata: product.metadata || {},
+            default_price: product.default_price ? {
+              id: typeof product.default_price === 'string' 
+                ? product.default_price 
+                : product.default_price.id,
+              unit_amount: typeof product.default_price === 'object' 
+                ? product.default_price.unit_amount 
+                : null,
+              currency: typeof product.default_price === 'object' 
+                ? product.default_price.currency 
+                : 'brl',
+              recurring: typeof product.default_price === 'object' 
+                ? product.default_price.recurring 
+                : null,
+            } : null,
+          }))
+          
+          return reply.status(200).send({ products: formattedProducts })
+        } catch (error) {
+          request.log.error('Erro ao buscar produtos do Stripe:', error)
+          return reply.status(500).send({ 
+            message: 'Erro ao buscar produtos do Stripe',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
+      }
+    )
+
+  /**
    * Lista todos os planos disponíveis
    */
   app
@@ -39,8 +112,24 @@ export async function billingRoutes(app: FastifyInstance) {
         },
       },
       async (request, reply) => {
-        const plans = await billingService.listPlans()
-        return reply.status(200).send({ plans })
+        try {
+          const plansData = await billingService.listPlans()
+          
+          // Converter datas para ISO string
+          const plans = plansData.map(plan => ({
+            ...plan,
+            created_at: plan.created_at.toISOString(),
+            updated_at: plan.updated_at?.toISOString() ?? null,
+          }))
+          
+          return reply.status(200).send({ plans })
+        } catch (error) {
+          request.log.error('Erro ao listar planos:', error)
+          return reply.status(500).send({ 
+            message: 'Erro ao buscar planos',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
       }
     )
 
@@ -68,13 +157,28 @@ export async function billingRoutes(app: FastifyInstance) {
       async (request, reply) => {
         const { planId } = request.params as any
 
-        const plan = await billingService.getPlan(planId)
+        try {
+          const planData = await billingService.getPlan(planId)
 
-        if (!plan) {
-          return reply.status(404 as any).send({ message: 'Plano não encontrado' })
+          if (!planData) {
+            return reply.status(404 as any).send({ message: 'Plano não encontrado' })
+          }
+
+          // Converter datas para ISO string
+          const plan = {
+            ...planData,
+            created_at: planData.created_at.toISOString(),
+            updated_at: planData.updated_at?.toISOString() ?? null,
+          }
+
+          return reply.status(200).send({ plan })
+        } catch (error) {
+          request.log.error('Erro ao buscar plano:', error)
+          return reply.status(500).send({ 
+            message: 'Erro ao buscar plano',
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
         }
-
-        return reply.status(200).send({ plan })
       }
     )
 

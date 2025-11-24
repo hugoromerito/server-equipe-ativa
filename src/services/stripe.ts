@@ -398,6 +398,56 @@ export class StripeService {
   getPublishableKey(): string {
     return env.STRIPE_PUBLISHABLE_KEY
   }
+
+  /**
+   * Lista todos os produtos ativos do Stripe
+   */
+  async listProducts(params?: {
+    active?: boolean
+    limit?: number
+  }): Promise<Stripe.Product[]> {
+    const products = await stripe.products.list({
+      active: params?.active ?? true,
+      limit: params?.limit ?? 100,
+      expand: ['data.default_price'],
+    })
+    return products.data
+  }
+
+  /**
+   * Lista todos os preços ativos
+   */
+  async listPrices(params?: {
+    active?: boolean
+    limit?: number
+    product?: string
+  }): Promise<Stripe.Price[]> {
+    const prices = await stripe.prices.list({
+      active: params?.active ?? true,
+      limit: params?.limit ?? 100,
+      product: params?.product,
+      expand: ['data.product'],
+    })
+    return prices.data
+  }
+
+  /**
+   * Obtém um produto específico
+   */
+  async getProduct(productId: string): Promise<Stripe.Product> {
+    return await stripe.products.retrieve(productId, {
+      expand: ['default_price'],
+    })
+  }
+
+  /**
+   * Obtém um preço específico
+   */
+  async getPrice(priceId: string): Promise<Stripe.Price> {
+    return await stripe.prices.retrieve(priceId, {
+      expand: ['product'],
+    })
+  }
 }
 
 export const stripeService = new StripeService()
