@@ -278,10 +278,6 @@ Authorization: Bearer <seu-token-jwt>
               "currency": "brl",
               "recurring": {
                 "interval": "month"
-              },
-              "product": {
-                "id": "prod_xxx",
-                "name": "Plano Básico"
               }
             }
           }

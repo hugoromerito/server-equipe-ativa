@@ -232,7 +232,7 @@ export async function billingRoutes(app: FastifyInstance) {
       // Busca assinaturas do customer
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        expand: ['data.items.data.price.product'],
+        expand: ['data.items.data.price'],
       })
 
       return reply.send({ subscriptions: subscriptions.data })
