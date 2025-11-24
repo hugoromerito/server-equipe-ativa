@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { authPreHandler } from '../middlewares/auth.ts'
-import { usageTrackingService } from '../../services/usage-tracking.ts'
 
 /**
  * Rotas de uso e estatísticas de assinatura
  */
 export async function usageRoutes(app: FastifyInstance) {
+  const { usageTrackingService } = await import('../../services/usage-tracking.ts')
+  
   /**
    * Obtém estatísticas de uso da organização
    */
