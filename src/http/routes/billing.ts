@@ -160,34 +160,6 @@ export async function billingRoutes(app: FastifyInstance) {
     )
 
   /**
-   * Cria um novo plano (Admin apenas)
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/plans',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria um novo plano',
-          security: [{ bearerAuth: [] }],
-          body: createPlanSchema,
-          response: {
-            201: z.object({
-              plan: planResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        // TODO: Adicionar verificação de admin
-        const plan = await billingService.createPlan(request.body as any)
-        return reply.status(201).send({ plan })
-      }
-    )
-
-  /**
    * Atualiza um plano (Admin apenas)
    */
   app
