@@ -264,11 +264,11 @@ export class UsageTrackingService {
       apiVersion: '2025-02-24.acacia',
     })
 
-    // Busca assinaturas ativas do customer
+    // Busca assinaturas ativas do customer com produto expandido
     const stripeSubscriptions = await stripe.subscriptions.list({
       customer: org.stripe_customer_id,
       status: 'active',
-      expand: ['data.items.data.price'],
+      expand: ['data.items.data.price.product'],
     })
 
     if (stripeSubscriptions.data.length === 0) {
@@ -276,72 +276,51 @@ export class UsageTrackingService {
     }
 
     const stripeSub = stripeSubscriptions.data[0]
-    const priceId = stripeSub.items.data[0].price.id
+    const price = stripeSub.items.data[0].price
+    const product = typeof price.product === 'string' 
+      ? await stripe.products.retrieve(price.product)
+      : price.product
 
-    // Busca plano no banco pelo stripe_price_id
-    const { plans } = await import('../db/schema/billings.ts')
-    const allPlans = await db.query.plans.findMany()
-    const plan = allPlans.find(p => p.stripe_price_id === priceId)
+    // Extrai limites do metadata do produto
+    const metadata = product.deleted ? {} : (product.metadata || {})
+    const productName = product.deleted ? 'Plano Ativo' : product.name
+    const max_members = metadata.max_members ? parseInt(metadata.max_members) : null
+    const max_units = metadata.max_units ? parseInt(metadata.max_units) : null
+    const max_demands = metadata.max_demands ? parseInt(metadata.max_demands) : null
+    const max_storage_gb = metadata.max_storage_gb ? parseInt(metadata.max_storage_gb) : null
 
     // Calcula uso atual
     const usage = await this.calculateCurrentUsage(organizationId)
 
-    // Se não encontrou o plano, retorna sem limites
-    if (!plan) {
-      return {
-        plan_name: 'Plano Ativo',
-        members: {
-          current: usage.members_count,
-          limit: null,
-          percentage: 0,
-        },
-        units: {
-          current: usage.units_count,
-          limit: null,
-          percentage: 0,
-        },
-        demands: {
-          current: usage.demands_count,
-          limit: null,
-          percentage: 0,
-        },
-        storage: {
-          current: parseFloat(usage.storage_used_gb),
-          limit: null,
-          percentage: 0,
-        },
-      }
-    }
-
-    // Retorna com os limites do plano
+    // Retorna com os limites do Stripe metadata
     return {
-      plan_name: plan.name,
+      plan_name: productName,
       members: {
         current: usage.members_count,
-        limit: plan.max_members,
-        percentage: plan.max_members
-          ? Math.round((usage.members_count / plan.max_members) * 100)
+        limit: max_members,
+        percentage: max_members
+          ? Math.round((usage.members_count / max_members) * 100)
           : 0,
       },
       units: {
         current: usage.units_count,
-        limit: plan.max_units,
-        percentage: plan.max_units
-          ? Math.round((usage.units_count / plan.max_units) * 100)
+        limit: max_units,
+        percentage: max_units
+          ? Math.round((usage.units_count / max_units) * 100)
           : 0,
       },
       demands: {
         current: usage.demands_count,
-        limit: plan.max_demands,
-        percentage: plan.max_demands
-          ? Math.round((usage.demands_count / plan.max_demands) * 100)
+        limit: max_demands,
+        percentage: max_demands
+          ? Math.round((usage.demands_count / max_demands) * 100)
           : 0,
       },
       storage: {
         current: parseFloat(usage.storage_used_gb),
-        limit: plan.max_storage_gb,
-        percentage: plan.max_storage_gb
-          ? Math.round((parseFloat(usage.storage_used_gb) / plan.max_storage_gb) * 100)
+        limit: max_storage_gb,
+        percentage: max_storage_gb
+          ? Math.round((parseFloat(usage.storage_used_gb) / max_storage_gb) * 100)
           : 0,
       },
     }

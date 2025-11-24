@@ -440,4 +440,80 @@ export async function billingRoutes(app: FastifyInstance) {
       })
     }
   })
+
+  /**
+   * Atualiza stripe_price_id de um plano (admin)
+   */
+  app.patch('/admin/plans/:planId/stripe-price', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { planId } = request.params as { planId: string }
+      const { stripe_price_id } = request.body as { stripe_price_id: string }
+
+      if (!stripe_price_id || !stripe_price_id.startsWith('price_')) {
+        return reply.code(400).send({ 
+          error: 'stripe_price_id inválido. Deve começar com "price_"' 
+        })
+      }
+
+      const { db } = await import('../../db/connection.ts')
+      const { plans } = await import('../../db/schema/billings.ts')
+      const { eq } = await import('drizzle-orm')
+
+      // Atualiza o plano
+      await db
+        .update(plans)
+        .set({ stripe_price_id })
+        .where(eq(plans.id, planId))
+
+      // Busca plano atualizado
+      const plan = await db.query.plans.findFirst({
+        where: eq(plans.id, planId),
+      })
+
+      if (!plan) {
+        return reply.code(404).send({ error: 'Plano não encontrado' })
+      }
+
+      return reply.send({
+        message: 'stripe_price_id atualizado com sucesso',
+        plan: {
+          id: plan.id,
+          name: plan.name,
+          slug: plan.slug,
+          stripe_price_id: plan.stripe_price_id,
+          stripe_product_id: plan.stripe_product_id,
+        },
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar stripe_price_id:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao atualizar'
+      })
+    }
+  })
+
+  /**
+   * Lista todos os planos (admin)
+   */
+  app.get('/admin/plans', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { db } = await import('../../db/connection.ts')
+      const { plans } = await import('../../db/schema/billings.ts')
+
+      const allPlans = await db.query.plans.findMany({
+        orderBy: (plans, { asc }) => [asc(plans.price)],
+      })
+
+      return reply.send({ plans: allPlans })
+    } catch (error) {
+      console.error('Erro ao listar planos:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao listar'
+      })
+    }
+  })
 }
