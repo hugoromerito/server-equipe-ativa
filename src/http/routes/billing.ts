@@ -247,11 +247,13 @@ export async function billingRoutes(app: FastifyInstance) {
       async (request, reply) => {
         try {
           const { organizationId } = request.params as any
+          request.log.info(`Buscando assinatura para organização: ${organizationId}`)
           const subscription = await billingService.getActiveSubscription(organizationId)
+          request.log.info(`Assinatura encontrada: ${subscription ? 'sim' : 'não'}`)
           return reply.status(200).send({ subscription })
         } catch (error) {
           request.log.error('Erro ao buscar assinatura')
-          console.error(error)
+          console.error('Erro detalhado ao buscar assinatura:', error)
           return reply.code(500).send({ 
             message: 'Erro ao buscar assinatura',
             error: error instanceof Error ? error.message : 'Erro desconhecido'
@@ -382,11 +384,13 @@ export async function billingRoutes(app: FastifyInstance) {
       async (request, reply) => {
         try {
           const { organizationId } = request.params as any
+          request.log.info(`Buscando métodos de pagamento para organização: ${organizationId}`)
           const paymentMethods = await billingService.listPaymentMethods(organizationId)
+          request.log.info(`Métodos de pagamento encontrados: ${paymentMethods.length}`)
           return reply.status(200).send({ payment_methods: paymentMethods })
         } catch (error) {
           request.log.error('Erro ao listar métodos de pagamento')
-          console.error(error)
+          console.error('Erro detalhado ao listar métodos de pagamento:', error)
           return reply.code(500).send({ 
             message: 'Erro ao listar métodos de pagamento',
             error: error instanceof Error ? error.message : 'Erro desconhecido'
@@ -685,6 +689,8 @@ export async function billingRoutes(app: FastifyInstance) {
         try {
           const { organization_id, price_id, success_url, cancel_url } = request.body as any
           
+          request.log.info(`Criando checkout - org: ${organization_id}, price: ${price_id}`)
+          
           const Stripe = (await import('stripe')).default
           const { env } = await import('../../config/env.ts')
           const { db } = await import('../../db/connection.ts')
@@ -696,6 +702,7 @@ export async function billingRoutes(app: FastifyInstance) {
           })
 
           // Busca organização
+          request.log.info('Buscando organização no banco...')
           const org = await db.query.organizations.findFirst({
             where: eq(organizations.id, organization_id),
           })

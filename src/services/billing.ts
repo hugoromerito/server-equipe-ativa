@@ -235,17 +235,27 @@ export class BillingService {
    */
   async getActiveSubscription(organizationId: string) {
     try {
-      const subscription = await db.query.subscriptions.findFirst({
-        where: and(
-          eq(subscriptions.organization_id, organizationId),
-          eq(subscriptions.status, 'active')
-        ),
-        with: {
-          plan: true,
-        },
-      })
+      const results = await db
+        .select()
+        .from(subscriptions)
+        .leftJoin(plans, eq(subscriptions.plan_id, plans.id))
+        .where(
+          and(
+            eq(subscriptions.organization_id, organizationId),
+            eq(subscriptions.status, 'active')
+          )
+        )
+        .limit(1)
       
-      return subscription || null
+      if (results.length === 0) {
+        return null
+      }
+      
+      const result = results[0]
+      return {
+        ...result.subscriptions,
+        plan: result.plans,
+      }
     } catch (error) {
       console.error('Erro ao buscar assinatura ativa:', error)
       return null
@@ -257,10 +267,11 @@ export class BillingService {
    */
   async listPaymentMethods(organizationId: string) {
     try {
-      return await db.query.paymentMethods.findMany({
-        where: eq(paymentMethods.organization_id, organizationId),
-        orderBy: [desc(paymentMethods.is_default), desc(paymentMethods.created_at)],
-      })
+      return await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.organization_id, organizationId))
+        .orderBy(desc(paymentMethods.is_default), desc(paymentMethods.created_at))
     } catch (error) {
       console.error('Erro ao listar métodos de pagamento:', error)
       return []
