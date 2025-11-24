@@ -1,934 +1,313 @@
 import type { FastifyInstance } from 'fastify'
-import type { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { z } from 'zod'
-import { auth, authPreHandler } from '../middlewares/auth.ts'
-import { billingService } from '../../services/billing.ts'
-import {
-  createPlanSchema,
-  createSubscriptionSchema,
-  updatePlanSchema,
-  cancelSubscriptionSchema,
-  createPaymentMethodSchema,
-  updatePaymentMethodSchema,
-  planResponseSchema,
-  subscriptionResponseSchema,
-  subscriptionWithPlanResponseSchema,
-  paymentMethodResponseSchema,
-  paymentResponseSchema,
-} from '../schemas/billing-schemas.ts'
+import { authPreHandler } from '../middlewares/auth.ts'
 
+/**
+ * Rotas simplificadas do Stripe
+ * Tudo é gerenciado pelo próprio Stripe (Hosted Checkout + Customer Portal)
+ */
 export async function billingRoutes(app: FastifyInstance) {
-  // =============== PLANS ===============
+  const Stripe = (await import('stripe')).default
+  const { env } = await import('../../config/env.ts')
+  
+  const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-02-24.acacia',
+  })
 
   /**
-   * Lista todos os planos disponíveis do Stripe (fonte oficial)
+   * Lista produtos/planos do Stripe
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/plans',
-      {
-        schema: {
-          tags: ['Billing'],
-          summary: 'Lista produtos/planos do Stripe',
-          description: 'Busca os planos diretamente do Stripe (sempre atualizado)',
-        },
-      },
-      async (request, reply) => {
-        try {
-          const Stripe = (await import('stripe')).default
-          const { env } = await import('../../config/env.ts')
-          
-          const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-            apiVersion: '2025-02-24.acacia',
-          })
-          
-          const productsResponse = await stripe.products.list({
-            active: true,
-            limit: 100,
-            expand: ['data.default_price'],
-          })
-          
-          // Formatar resposta de forma segura
-          const formattedProducts = productsResponse.data.map(product => {
-            const defaultPrice = product.default_price
-            
-            return {
-              id: product.id,
-              name: product.name,
-              description: product.description || null,
-              active: product.active,
-              metadata: product.metadata || {},
-              default_price: defaultPrice ? (
-                typeof defaultPrice === 'string' 
-                  ? { id: defaultPrice, unit_amount: null, currency: 'brl', recurring: null }
-                  : {
-                      id: defaultPrice.id,
-                      unit_amount: defaultPrice.unit_amount || null,
-                      currency: defaultPrice.currency || 'brl',
-                      recurring: defaultPrice.recurring || null,
-                    }
-              ) : null,
-            }
-          })
-          
-          return reply.status(200).send({ products: formattedProducts })
-        } catch (error) {
-          console.error('Erro detalhado ao buscar produtos:', error)
-          return reply.status(500).send({ 
-            message: 'Erro ao buscar produtos do Stripe',
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-          })
+  app.get('/stripe/products', async (request, reply) => {
+    try {
+      const products = await stripe.products.list({
+        active: true,
+        expand: ['data.default_price'],
+      })
+      
+      return reply.send(products.data)
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao buscar produtos'
+      })
+    }
+  })
+
+  /**
+   * Lista preços do Stripe
+   */
+  app.get('/stripe/prices', async (request, reply) => {
+    try {
+      const prices = await stripe.prices.list({
+        active: true,
+        expand: ['data.product'],
+      })
+      
+      return reply.send(prices.data)
+    } catch (error) {
+      console.error('Erro ao buscar preços:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao buscar preços'
+      })
+    }
+  })
+
+  /**
+   * Cria sessão de checkout do Stripe (Hosted Checkout)
+   * O Stripe cuida de tudo: formulário, validação, pagamento, redirecionamento
+   */
+  app.post('/stripe/checkout', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const body = request.body as {
+        priceId: string
+        successUrl: string
+        cancelUrl: string
+        customerEmail?: string
+        metadata?: Record<string, string>
+      }
+
+      const { priceId, successUrl, cancelUrl, customerEmail, metadata } = body
+      
+      if (!priceId || !successUrl || !cancelUrl) {
+        return reply.code(400).send({ error: 'priceId, successUrl e cancelUrl são obrigatórios' })
+      }
+
+      const sessionConfig: any = {
+        mode: 'subscription',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        allow_promotion_codes: true,
+        billing_address_collection: 'auto',
+        locale: 'pt-BR',
+      }
+
+      // Se tiver email, cria/busca customer
+      if (customerEmail) {
+        const customers = await stripe.customers.list({
+          email: customerEmail,
+          limit: 1,
+        })
+
+        if (customers.data.length > 0) {
+          sessionConfig.customer = customers.data[0].id
+        } else {
+          sessionConfig.customer_email = customerEmail
         }
       }
-    )
+
+      // Adiciona metadata customizada
+      if (metadata) {
+        sessionConfig.metadata = metadata
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionConfig)
+
+      return reply.send({
+        sessionId: session.id,
+        url: session.url,
+      })
+    } catch (error) {
+      console.error('Erro ao criar checkout:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao criar checkout'
+      })
+    }
+  })
 
   /**
-   * Cria um produto/plano no Stripe (Admin)
+   * Webhook do Stripe - recebe eventos de pagamento
+   * Configure no dashboard do Stripe: https://dashboard.stripe.com/webhooks
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/plans',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria um produto/plano no Stripe',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            name: z.string().min(1),
-            description: z.string().optional(),
-            price: z.number().positive(),
-            currency: z.string().default('brl'),
-            interval: z.enum(['month', 'year']).default('month'),
-            metadata: z.record(z.string()).optional(),
-          }),
-        },
-      },
-      async (request, reply) => {
-        try {
-          const { name, description, price, currency, interval, metadata } = request.body as any
-          const { stripeService } = await import('../../services/stripe.ts')
-          const Stripe = await import('stripe')
-          const stripe = new Stripe.default(stripeService.getPublishableKey().replace('pk_', 'sk_'), {
-            apiVersion: '2025-02-24.acacia',
-          })
+  app.post('/stripe/webhook', async (request, reply) => {
+    try {
+      const sig = request.headers['stripe-signature'] as string
+      const webhookSecret = env.STRIPE_WEBHOOK_SECRET
 
-          // Criar produto
-          const product = await stripe.products.create({
-            name,
-            description,
-            metadata: metadata || {},
-          })
-
-          // Criar preço
-          const priceObj = await stripe.prices.create({
-            product: product.id,
-            unit_amount: Math.round(price * 100), // Converter para centavos
-            currency,
-            recurring: {
-              interval,
-            },
-          })
-
-          // Definir como preço padrão
-          await stripe.products.update(product.id, {
-            default_price: priceObj.id,
-          })
-
-          return reply.status(201).send({
-            success: true,
-            product: {
-              id: product.id,
-              name: product.name,
-              description: product.description,
-              price_id: priceObj.id,
-              price: price,
-              currency,
-              interval,
-            },
-          })
-        } catch (error) {
-          request.log.error('Erro ao criar plano no Stripe')
-          return reply.status(500).send({
-            message: 'Erro ao criar plano',
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-          })
-        }
+      if (!sig || !webhookSecret) {
+        return reply.code(400).send({ error: 'Missing signature or webhook secret' })
       }
-    )
+
+      // O Stripe precisa do body como string ou Buffer
+      const body = typeof request.body === 'string' 
+        ? request.body 
+        : JSON.stringify(request.body)
+
+      // Verifica assinatura do Stripe
+      const event = stripe.webhooks.constructEvent(
+        body,
+        sig,
+        webhookSecret
+      )
+
+      console.log(`✅ Webhook recebido: ${event.type}`)
+
+      // Processa eventos importantes
+      switch (event.type) {
+        case 'checkout.session.completed':
+          const session = event.data.object
+          console.log('💳 Checkout completo:', session.id, session.customer_email)
+          // Aqui você pode salvar no banco, enviar email, etc
+          break
+
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+          const subscription = event.data.object
+          console.log('📝 Assinatura atualizada:', subscription.id, subscription.status)
+          break
+
+        case 'customer.subscription.deleted':
+          const deletedSub = event.data.object
+          console.log('❌ Assinatura cancelada:', deletedSub.id)
+          break
+
+        case 'invoice.payment_succeeded':
+          const invoice = event.data.object
+          console.log('✅ Pagamento bem-sucedido:', invoice.id)
+          break
+
+        case 'invoice.payment_failed':
+          const failedInvoice = event.data.object
+          console.log('⚠️  Pagamento falhou:', failedInvoice.id)
+          break
+      }
+
+      return reply.send({ received: true })
+    } catch (error) {
+      console.error('❌ Erro no webhook:', error)
+      return reply.code(400).send({ 
+        error: error instanceof Error ? error.message : 'Erro no webhook'
+      })
+    }
+  })
 
   /**
-   * Atualiza um plano (Admin apenas)
+   * Busca detalhes de uma sessão de checkout
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .patch(
-      '/plans/:planId',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Atualiza um plano',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            planId: z.string().uuid(),
-          }),
-          body: updatePlanSchema,
-          response: {
-            200: z.object({
-              plan: planResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { planId } = request.params as any
-        const plan = await billingService.updatePlan(planId, request.body as any)
-        return reply.status(200).send({ plan })
-      }
-    )
+  app.get('/stripe/checkout/:sessionId', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { sessionId } = request.params as { sessionId: string }
 
-  // =============== SUBSCRIPTIONS ===============
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['subscription', 'customer'],
+      })
+
+      return reply.send(session)
+    } catch (error) {
+      console.error('Erro ao buscar sessão:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao buscar sessão'
+      })
+    }
+  })
 
   /**
-   * Cria uma assinatura para uma organização
+   * Lista assinaturas de um customer
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/subscriptions',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria uma assinatura',
-          security: [{ bearerAuth: [] }],
-          body: createSubscriptionSchema,
-          response: {
-            201: z.object({
-              subscription: subscriptionResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        try {
-          const subscription = await billingService.createSubscription(request.body as any)
-          return reply.status(201).send({ subscription })
-        } catch (error) {
-          if (error instanceof Error) {
-            return reply.status(400 as any).send({ message: error.message })
-          }
-          throw error
-        }
-      }
-    )
+  app.get('/stripe/subscriptions', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { customerEmail } = request.query as { customerEmail?: string }
 
-  /**
-   * Obtém a assinatura ativa de uma organização
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/organizations/:organizationId/subscription',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Obtém assinatura ativa da organização',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            organizationId: z.string().uuid(),
-          }),
-        },
-      },
-      async (request, reply) => {
-        try {
-          const { organizationId } = request.params as any
-          request.log.info(`Buscando assinatura para organização: ${organizationId}`)
-          const subscription = await billingService.getActiveSubscription(organizationId)
-          request.log.info(`Assinatura encontrada: ${subscription ? 'sim' : 'não'}`)
-          return reply.status(200).send({ subscription })
-        } catch (error) {
-          request.log.error('Erro ao buscar assinatura')
-          console.error('Erro detalhado ao buscar assinatura:', error)
-          return reply.code(500).send({ 
-            message: 'Erro ao buscar assinatura',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-        }
+      if (!customerEmail) {
+        return reply.code(400).send({ error: 'customerEmail é obrigatório' })
       }
-    )
+
+      // Busca customer pelo email
+      const customers = await stripe.customers.list({
+        email: customerEmail,
+        limit: 1,
+      })
+
+      if (customers.data.length === 0) {
+        return reply.send({ subscriptions: [] })
+      }
+
+      const customerId = customers.data[0].id
+
+      // Busca assinaturas do customer
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        expand: ['data.items.data.price.product'],
+      })
+
+      return reply.send({ subscriptions: subscriptions.data })
+    } catch (error) {
+      console.error('Erro ao buscar assinaturas:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao buscar assinaturas'
+      })
+    }
+  })
 
   /**
    * Cancela uma assinatura
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/subscriptions/:subscriptionId/cancel',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cancela uma assinatura',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            subscriptionId: z.string().uuid(),
-          }),
-          body: z.object({
-            cancel_immediately: z.boolean().default(false),
-          }),
-          response: {
-            200: z.object({
-              subscription: subscriptionResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { subscriptionId } = request.params as any
-        const { cancel_immediately } = request.body as any
+  app.post('/stripe/subscriptions/:subscriptionId/cancel', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { subscriptionId } = request.params as { subscriptionId: string }
+      const { immediately } = request.body as { immediately?: boolean }
 
-        try {
-          const subscription = await billingService.cancelSubscription(
-            subscriptionId,
-            cancel_immediately
-          )
-          return reply.status(200).send({ subscription })
-        } catch (error) {
-          if (error instanceof Error) {
-            return reply.status(400 as any).send({ message: error.message })
-          }
-          throw error
-        }
-      }
-    )
-
-  /**
-   * Cancela uma assinatura
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/subscriptions/:subscriptionId/usage',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Obtém uso atual da assinatura',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            subscriptionId: z.string().uuid(),
-          }),
-          response: {
-            200: z.object({
-              usage: z.object({
-                subscription: subscriptionWithPlanResponseSchema,
-                usage: z
-                  .object({
-                    members_count: z.number(),
-                    units_count: z.number(),
-                    demands_count: z.number(),
-                    storage_used_gb: z.string(),
-                  })
-                  .nullable(),
-                limits: z.object({
-                  max_members: z.number().nullable(),
-                  max_units: z.number().nullable(),
-                  max_demands: z.number().nullable(),
-                  max_storage_gb: z.number().nullable(),
-                }),
-              }),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { subscriptionId } = request.params as any
-
-        try {
-          const usage = await billingService.getCurrentUsage(subscriptionId)
-          return reply.status(200).send({ usage })
-        } catch (error) {
-          if (error instanceof Error) {
-            return reply.status(400 as any).send({ message: error.message })
-          }
-          throw error
-        }
-      }
-    )
-
-  // =============== PAYMENT METHODS ===============
-
-  /**
-   * Lista métodos de pagamento de uma organização
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/organizations/:organizationId/payment-methods',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Lista métodos de pagamento',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            organizationId: z.string().uuid(),
-          }),
-        },
-      },
-      async (request, reply) => {
-        try {
-          const { organizationId } = request.params as any
-          request.log.info(`Buscando métodos de pagamento para organização: ${organizationId}`)
-          const paymentMethods = await billingService.listPaymentMethods(organizationId)
-          request.log.info(`Métodos de pagamento encontrados: ${paymentMethods.length}`)
-          return reply.status(200).send({ payment_methods: paymentMethods })
-        } catch (error) {
-          request.log.error('Erro ao listar métodos de pagamento')
-          console.error('Erro detalhado ao listar métodos de pagamento:', error)
-          return reply.code(500).send({ 
-            message: 'Erro ao listar métodos de pagamento',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-        }
-      }
-    )
-
-  /**
-   * Adiciona um método de pagamento
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/payment-methods',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Adiciona método de pagamento',
-          security: [{ bearerAuth: [] }],
-          body: createPaymentMethodSchema,
-          response: {
-            201: z.object({
-              payment_method: paymentMethodResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const paymentMethod = await billingService.addPaymentMethod(request.body as any)
-        return reply.status(201).send({ payment_method: paymentMethod })
-      }
-    )
-
-  /**
-   * Atualiza um método de pagamento
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .patch(
-      '/payment-methods/:paymentMethodId',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Atualiza método de pagamento',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            paymentMethodId: z.string().uuid(),
-          }),
-          body: updatePaymentMethodSchema.omit({ paymentMethodId: true }),
-          response: {
-            200: z.object({
-              payment_method: paymentMethodResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { paymentMethodId } = request.params as any
-        const paymentMethod = await billingService.updatePaymentMethod(
-          paymentMethodId,
-          request.body as any
-        )
-        return reply.status(200).send({ payment_method: paymentMethod })
-      }
-    )
-
-  /**
-   * Remove um método de pagamento
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .delete(
-      '/payment-methods/:paymentMethodId',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Remove método de pagamento',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            paymentMethodId: z.string().uuid(),
-          }),
-          response: {
-            204: z.null(),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { paymentMethodId } = request.params as any
-
-        try {
-          await billingService.deletePaymentMethod(paymentMethodId)
-          return reply.status(204).send()
-        } catch (error) {
-          if (error instanceof Error) {
-            return reply.status(400 as any).send({ message: error.message })
-          }
-          throw error
-        }
-      }
-    )
-
-  // =============== PAYMENTS ===============
-
-  /**
-   * Lista pagamentos de uma assinatura
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/subscriptions/:subscriptionId/payments',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Lista pagamentos da assinatura',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            subscriptionId: z.string().uuid(),
-          }),
-          querystring: z.object({
-            limit: z.coerce.number().int().min(1).max(100).default(20),
-          }),
-          response: {
-            200: z.object({
-              payments: z.array(paymentResponseSchema),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { subscriptionId } = request.params as any
-        const { limit } = request.query as any
-
-        const payments = await billingService.listPayments(subscriptionId, limit)
-        return reply.status(200).send({ payments })
-      }
-    )
-
-  /**
-   * Verifica se pode criar recurso (verifica limites do plano)
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/organizations/:organizationId/can-create/:resourceType',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Verifica se pode criar recurso',
-          security: [{ bearerAuth: [] }],
-          params: z.object({
-            organizationId: z.string().uuid(),
-            resourceType: z.enum(['member', 'unit', 'demand']),
-          }),
-          response: {
-            200: z.object({
-              allowed: z.boolean(),
-              reason: z.string().optional(),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { organizationId, resourceType } = request.params as any
-
-        const result = await billingService.canCreateResource(organizationId, resourceType)
-        return reply.status(200).send(result)
-      }
-    )
-
-  // =============== FRONTEND INTEGRATION ===============
-
-  /**
-   * Obtém a chave pública do Stripe para o frontend
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/stripe/config',
-      {
-        schema: {
-          tags: ['Billing'],
-          summary: 'Obtém configuração pública do Stripe',
-          response: {
-            200: z.object({
-              publishableKey: z.string(),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { stripeService } = await import('../../services/stripe.ts')
-        return reply.status(200).send({
-          publishableKey: stripeService.getPublishableKey(),
-        })
-      }
-    )
-
-  /**
-   * Cria um SetupIntent para adicionar método de pagamento no frontend
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/stripe/setup-intent',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria SetupIntent para salvar cartão',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            organization_id: z.string().uuid(),
-          }),
-          response: {
-            200: z.object({
-              client_secret: z.string(),
-              setup_intent_id: z.string(),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { organization_id } = request.body as any
-        const { stripeService } = await import('../../services/stripe.ts')
-        const { db } = await import('../../db/connection.ts')
-        const { organizations } = await import('../../db/schema/organization.ts')
-        const { eq } = await import('drizzle-orm')
-
-        // Busca organização
-        const org = await db.query.organizations.findFirst({
-          where: eq(organizations.id, organization_id),
-        })
-
-        if (!org) {
-          return reply.status(404 as any).send({ message: 'Organização não encontrada' })
-        }
-
-        // Cria ou obtém customer no Stripe
-        let customerId = org.stripe_customer_id
-        if (!customerId) {
-          const customer = await stripeService.createCustomer({
-            email: org.owner_email || 'contato@equipeativa.com',
-            name: org.name,
-            metadata: { organization_id: org.id },
-          })
-          customerId = customer.id
-
-          await db
-            .update(organizations)
-            .set({ stripe_customer_id: customerId })
-            .where(eq(organizations.id, org.id))
-        }
-
-        // Cria SetupIntent
-        const setupIntent = await stripeService.createSetupIntent({
-          customer: customerId,
-          metadata: { organization_id },
-        })
-
-        return reply.status(200).send({
-          client_secret: setupIntent.client_secret as string,
-          setup_intent_id: setupIntent.id,
-        })
-      }
-    )
-
-  /**
-   * Cria uma Checkout Session (modo hospedado pelo Stripe)
-   * Recebe o price_id diretamente do Stripe (da listagem /plans)
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/checkout',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria sessão de checkout',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            organization_id: z.string().uuid(),
-            price_id: z.string(), // ID do price do Stripe (ex: price_xxxxx)
-            success_url: z.string().url(),
-            cancel_url: z.string().url(),
-          }),
-        },
-      },
-      async (request, reply) => {
-        try {
-          const { organization_id, price_id, success_url, cancel_url } = request.body as any
-          
-          request.log.info(`Criando checkout - org: ${organization_id}, price: ${price_id}`)
-          
-          const Stripe = (await import('stripe')).default
-          const { env } = await import('../../config/env.ts')
-          const { db } = await import('../../db/connection.ts')
-          const { organizations } = await import('../../db/schema/organization.ts')
-          const { eq } = await import('drizzle-orm')
-          
-          const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-            apiVersion: '2025-02-24.acacia',
+      const subscription = immediately
+        ? await stripe.subscriptions.cancel(subscriptionId)
+        : await stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: true,
           })
 
-          // Busca organização
-          request.log.info('Buscando organização no banco...')
-          const org = await db.query.organizations.findFirst({
-            where: eq(organizations.id, organization_id),
-          })
-
-          if (!org) {
-            return reply.status(404).send({ message: 'Organização não encontrada' })
-          }
-
-          // Cria ou obtém customer no Stripe
-          let customerId = org.stripe_customer_id
-          if (!customerId) {
-            const customer = await stripe.customers.create({
-              email: org.owner_email || 'contato@equipeativa.com',
-              name: org.name,
-              metadata: { organization_id: org.id },
-            })
-            customerId = customer.id
-
-            await db
-              .update(organizations)
-              .set({ stripe_customer_id: customerId })
-              .where(eq(organizations.id, org.id))
-          }
-
-          // Cria Checkout Session
-          const session = await stripe.checkout.sessions.create({
-            customer: customerId,
-            line_items: [{ price: price_id, quantity: 1 }],
-            mode: 'subscription',
-            success_url,
-            cancel_url,
-            metadata: {
-              organization_id,
-            },
-            allow_promotion_codes: true,
-            billing_address_collection: 'auto',
-            locale: 'pt-BR',
-          })
-
-          return reply.status(200).send({
-            checkout_url: session.url,
-            session_id: session.id,
-          })
-        } catch (error) {
-          console.error('Erro ao criar checkout:', error)
-          return reply.status(500).send({ 
-            message: 'Erro ao criar sessão de checkout',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-        }
-      }
-    )
+      return reply.send(subscription)
+    } catch (error) {
+      console.error('Erro ao cancelar assinatura:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao cancelar assinatura'
+      })
+    }
+  })
 
   /**
-   * Cria assinatura com pagamento integrado (retorna client_secret)
+   * Cria portal do cliente (gerenciar assinatura, pagamento, etc)
+   * O Stripe cuida de TUDO: mudança de plano, cartão, cancelamento, faturas
    */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/stripe/create-subscription-payment',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria assinatura com pagamento integrado',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            organization_id: z.string().uuid(),
-            plan_id: z.string().uuid(),
-            payment_method_id: z.string().optional(),
-          }),
-          response: {
-            200: z.object({
-              subscription_id: z.string(),
-              client_secret: z.string().nullable(),
-              status: z.string(),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { organization_id, plan_id, payment_method_id } = request.body as any
-
-        try {
-          const subscription = await billingService.createSubscription({
-            organization_id,
-            plan_id,
-            payment_method_id,
-          })
-
-          // Se tem stripe_subscription_id, busca o client_secret
-          let clientSecret = null
-          if (subscription.stripe_subscription_id) {
-            const { stripeService } = await import('../../services/stripe.ts')
-            const stripeSub = await stripeService.getSubscription(
-              subscription.stripe_subscription_id
-            )
-            const invoice = stripeSub.latest_invoice as any
-            const paymentIntent = invoice?.payment_intent as any
-            clientSecret = paymentIntent?.client_secret || null
-          }
-
-          return reply.status(200).send({
-            subscription_id: subscription.id,
-            client_secret: clientSecret,
-            status: subscription.status,
-          })
-        } catch (error) {
-          if (error instanceof Error) {
-            return reply.status(400 as any).send({ message: error.message })
-          }
-          throw error
-        }
+  app.post('/stripe/customer-portal', {
+    preHandler: [authPreHandler],
+  }, async (request, reply) => {
+    try {
+      const { customerEmail, returnUrl } = request.body as { 
+        customerEmail: string
+        returnUrl: string 
       }
-    )
 
-  /**
-   * Confirma SetupIntent após pagamento bem-sucedido no frontend
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/stripe/confirm-setup',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Confirma SetupIntent e salva método de pagamento',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            organization_id: z.string().uuid(),
-            setup_intent_id: z.string(),
-            payment_method_id: z.string(),
-          }),
-          response: {
-            200: z.object({
-              success: z.boolean(),
-              payment_method: paymentMethodResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { organization_id, setup_intent_id, payment_method_id } = request.body as any
-        const { stripeService } = await import('../../services/stripe.ts')
-
-        // Busca detalhes do payment method no Stripe
-        const { default: Stripe } = await import('stripe')
-        const stripe = new Stripe(stripeService['stripe' as keyof typeof stripeService] as any, {
-          apiVersion: '2025-02-24.acacia',
-        })
-
-        const paymentMethod = await stripe.paymentMethods.retrieve(payment_method_id)
-
-        // Salva no banco
-        const savedMethod = await billingService.addPaymentMethod({
-          organization_id,
-          type: 'credit_card',
-          stripe_payment_method_id: payment_method_id,
-          card_brand: paymentMethod.card?.brand,
-          card_last4: paymentMethod.card?.last4,
-          card_exp_month: paymentMethod.card?.exp_month,
-          card_exp_year: paymentMethod.card?.exp_year,
-          is_default: true,
-        })
-
-        return reply.status(200).send({
-          success: true,
-          payment_method: savedMethod,
-        })
+      if (!customerEmail || !returnUrl) {
+        return reply.code(400).send({ error: 'customerEmail e returnUrl são obrigatórios' })
       }
-    )
 
-  /**
-   * Cria Portal de Billing para gerenciamento de assinatura
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .post(
-      '/stripe/create-portal-session',
-      {
-        preHandler: [authPreHandler],
-        schema: {
-          tags: ['Billing'],
-          summary: 'Cria portal de gerenciamento de assinatura',
-          security: [{ bearerAuth: [] }],
-          body: z.object({
-            organization_id: z.string().uuid(),
-            return_url: z.string().url(),
-          }),
-          response: {
-            200: z.object({
-              portal_url: z.string(),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { organization_id, return_url } = request.body as any
-        const { stripeService } = await import('../../services/stripe.ts')
-        const { db } = await import('../../db/connection.ts')
-        const { organizations } = await import('../../db/schema/organization.ts')
-        const { eq } = await import('drizzle-orm')
+      // Busca customer
+      const customers = await stripe.customers.list({
+        email: customerEmail,
+        limit: 1,
+      })
 
-        const org = await db.query.organizations.findFirst({
-          where: eq(organizations.id, organization_id),
-        })
-
-        if (!org || !org.stripe_customer_id) {
-          return reply.status(404 as any).send({
-            message: 'Organização não encontrada ou sem customer Stripe',
-          })
-        }
-
-        const session = await stripeService.createBillingPortalSession({
-          customer: org.stripe_customer_id,
-          return_url,
-        })
-
-        return reply.status(200).send({
-          portal_url: session.url,
-        })
+      if (customers.data.length === 0) {
+        return reply.code(404).send({ error: 'Customer não encontrado' })
       }
-    )
+
+      // Cria sessão do portal
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customers.data[0].id,
+        return_url: returnUrl,
+      })
+
+      return reply.send({ url: session.url })
+    } catch (error) {
+      console.error('Erro ao criar portal:', error)
+      return reply.code(500).send({ 
+        error: error instanceof Error ? error.message : 'Erro ao criar portal'
+      })
+    }
+  })
 }
-
-
-
-
