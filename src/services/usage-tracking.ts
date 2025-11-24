@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql, gte } from 'drizzle-orm'
 import { db } from '../db/connection.ts'
 import { members } from '../db/schema/organization.ts'
 import { units } from '../db/schema/organization.ts'
@@ -42,7 +42,7 @@ export class UsageTrackingService {
       .where(
         and(
           eq(applicants.organization_id, organizationId),
-          sql`${demands.created_at} >= ${startOfMonth}`
+          gte(demands.created_at, startOfMonth)
         )
       )
     const demandsCount = demandsResult[0]?.count || 0
@@ -213,7 +213,7 @@ export class UsageTrackingService {
             .where(
               and(
                 eq(applicants.organization_id, organizationId),
-                sql`${demands.created_at} >= ${startOfMonth}`
+                gte(demands.created_at, startOfMonth)
               )
             )
           currentCount = result[0]?.count || 0
