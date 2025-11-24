@@ -34,13 +34,14 @@ export class UsageTrackingService {
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
 
+    const { applicants } = await import('../db/schema/demands.ts')
     const demandsResult = await db
       .select({ count: sql<number>`cast(count(*) as integer)` })
       .from(demands)
-      .innerJoin(units, eq(demands.unit_id, units.id))
+      .innerJoin(applicants, eq(demands.applicant_id, applicants.id))
       .where(
         and(
-          eq(units.organization_id, organizationId),
+          eq(applicants.organization_id, organizationId),
           sql`${demands.created_at} >= ${startOfMonth}`
         )
       )
