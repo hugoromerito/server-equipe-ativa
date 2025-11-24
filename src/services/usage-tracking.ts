@@ -264,11 +264,11 @@ export class UsageTrackingService {
       apiVersion: '2025-02-24.acacia',
     })
 
-    // Busca assinaturas ativas do customer com produto expandido
+    // Busca assinaturas ativas do customer
     const stripeSubscriptions = await stripe.subscriptions.list({
       customer: org.stripe_customer_id,
       status: 'active',
-      expand: ['data.items.data.price.product'],
+      expand: ['data.items.data.price'],
     })
 
     if (stripeSubscriptions.data.length === 0) {
@@ -277,13 +277,14 @@ export class UsageTrackingService {
 
     const stripeSub = stripeSubscriptions.data[0]
     const price = stripeSub.items.data[0].price
-    const product = typeof price.product === 'string' 
-      ? await stripe.products.retrieve(price.product)
-      : price.product
+    
+    // Busca o produto separadamente (não pode expandir 4 níveis)
+    const productId = typeof price.product === 'string' ? price.product : price.product.id
+    const product = await stripe.products.retrieve(productId)
 
     // Extrai limites do metadata do produto
-    const metadata = product.deleted ? {} : (product.metadata || {})
-    const productName = product.deleted ? 'Plano Ativo' : product.name
+    const metadata = product.metadata || {}
+    const productName = product.name
     const max_members = metadata.max_members ? parseInt(metadata.max_members) : null
     const max_units = metadata.max_units ? parseInt(metadata.max_units) : null
     const max_demands = metadata.max_demands ? parseInt(metadata.max_demands) : null
