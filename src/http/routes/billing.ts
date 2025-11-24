@@ -32,26 +32,6 @@ export async function billingRoutes(app: FastifyInstance) {
           tags: ['Billing'],
           summary: 'Lista produtos/planos do Stripe',
           description: 'Busca os planos diretamente do Stripe (sempre atualizado)',
-          response: {
-            200: z.object({
-              products: z.array(z.object({
-                id: z.string(),
-                name: z.string(),
-                description: z.string().nullable(),
-                active: z.boolean(),
-                metadata: z.record(z.string()),
-                default_price: z.object({
-                  id: z.string(),
-                  unit_amount: z.number().nullable(),
-                  currency: z.string(),
-                  recurring: z.object({
-                    interval: z.enum(['day', 'week', 'month', 'year']),
-                    interval_count: z.number(),
-                  }).nullable(),
-                }).nullable(),
-              })),
-            }),
-          },
         },
       },
       async (request, reply) => {
@@ -84,7 +64,7 @@ export async function billingRoutes(app: FastifyInstance) {
           
           return reply.status(200).send({ products: formattedProducts })
         } catch (error) {
-          request.log.error('Erro ao buscar produtos do Stripe:', error)
+          request.log.error('Erro ao buscar produtos do Stripe')
           return reply.status(500).send({ 
             message: 'Erro ao buscar produtos do Stripe',
             error: error instanceof Error ? error.message : 'Erro desconhecido'
