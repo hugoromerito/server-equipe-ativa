@@ -21,6 +21,7 @@ import { classifyDemandAi } from '../../utils/classify-demand-ai.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { validateMemberScheduling, checkWorkingDay } from '../../utils/schedule-validation.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 import { InternalServerError } from '../_errors/internal-server-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
 
@@ -161,7 +162,7 @@ export const createDemandRoute: FastifyPluginCallbackZod = (app) => {
 
         // Verificar limite de applicants (solicitantes) do plano
         const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
-        const limitCheck = await usageTrackingService.checkResourceLimit(unit.organizationId, 'applicant')
+        const limitCheck = await usageTrackingService.canCreateResource(unit.organizationId, 'applicant')
         
         if (!limitCheck.allowed) {
           logger.warn(`Limite de solicitantes atingido para organização ${organizationSlug}: ${limitCheck.reason}`)

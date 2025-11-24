@@ -107,7 +107,7 @@ export const createUserRoute: FastifyPluginCallbackZod = (app) => {
           try {
             // Verificar limite de membros do plano
             const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
-            const limitCheck = await usageTrackingService.checkResourceLimit(autoJoinOrganization.id, 'member')
+            const limitCheck = await usageTrackingService.canCreateResource(autoJoinOrganization.id, 'member')
             
             if (limitCheck.allowed) {
               await db.insert(members).values({

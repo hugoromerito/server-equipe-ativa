@@ -36,28 +36,6 @@ export async function usageRoutes(app: FastifyInstance) {
   })
 
   /**
-   * Força atualização do registro de uso (admin)
-   * Útil para testes ou correções manuais
-   */
-  app.post('/admin/subscriptions/:subscriptionId/update-usage', {
-    preHandler: [authPreHandler],
-  }, async (request, reply) => {
-    const { subscriptionId } = request.params as { subscriptionId: string }
-
-    try {
-      const record = await usageTrackingService.updateUsageRecord(subscriptionId)
-      return reply.send({
-        message: 'Uso atualizado com sucesso',
-        record,
-      })
-    } catch (error) {
-      return reply.code(500).send({
-        message: error instanceof Error ? error.message : 'Erro ao atualizar uso',
-      })
-    }
-  })
-
-  /**
    * Verifica se pode criar recurso (útil para UI mostrar aviso antes)
    */
   app.get('/organizations/:organizationId/can-create/:resourceType', {

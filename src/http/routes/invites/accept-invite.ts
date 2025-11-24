@@ -3,8 +3,10 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { invites, members, users } from '../../../db/schema/index.ts'
+import { logger } from '../../../utils/logger.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
+import { ForbiddenError } from '../_errors/forbidden-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 import { withAuthErrorResponses } from '../_errors/error-helpers.ts'
 
@@ -75,7 +77,7 @@ export const acceptInviteRoute: FastifyPluginCallbackZod = (app) => {
 
       // Verificar limite de membros do plano
       const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
-      const limitCheck = await usageTrackingService.checkResourceLimit(invite[0].organization_id, 'member')
+      const limitCheck = await usageTrackingService.canCreateResource(invite[0].organization_id, 'member')
       
       if (!limitCheck.allowed) {
         logger.warn(`Limite de membros atingido para organização ${invite[0].organization_id}: ${limitCheck.reason}`)

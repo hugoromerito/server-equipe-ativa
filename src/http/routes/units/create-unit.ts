@@ -88,7 +88,7 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
 
         // Verificar limite de unidades do plano
         const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
-        const limitCheck = await usageTrackingService.checkResourceLimit(organization.id, 'unit')
+        const limitCheck = await usageTrackingService.canCreateResource(organization.id, 'unit')
         
         if (!limitCheck.allowed) {
           logger.warn(`Limite de unidades atingido para organização ${organizationSlug}: ${limitCheck.reason}`)

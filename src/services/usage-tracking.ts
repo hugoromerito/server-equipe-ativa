@@ -49,90 +49,8 @@ export class UsageTrackingService {
   }
 
   /**
-   * Atualiza ou cria registro de uso para uma assinatura
-   * Deve ser chamado periodicamente (cronjob) ou após operações importantes
-   */
-  async updateUsageRecord(subscriptionId: string) {
-    // Busca a assinatura
-    const subscription = await db.query.subscriptions.findFirst({
-      where: eq(subscriptions.id, subscriptionId),
-      with: { organization: true },
-    })
-
-    if (!subscription) {
-      throw new Error('Assinatura não encontrada')
-    }
-
-    // Calcula uso atual
-    const usage = await this.calculateCurrentUsage(subscription.organization_id)
-
-    // Verifica se já existe registro para o período atual
-    const existingRecord = await db.query.usageRecords.findFirst({
-      where: and(
-        eq(usageRecords.subscription_id, subscriptionId),
-        eq(usageRecords.period_start, subscription.current_period_start)
-      ),
-    })
-
-    if (existingRecord) {
-      // Atualiza registro existente
-      const [updated] = await db
-        .update(usageRecords)
-        .set({
-          members_count: usage.members_count,
-          units_count: usage.units_count,
-          demands_count: usage.demands_count,
-          storage_used_gb: usage.storage_used_gb,
-        })
-        .where(eq(usageRecords.id, existingRecord.id))
-        .returning()
-      
-      return updated
-    }
-
-    // Cria novo registro
-    const [newRecord] = await db
-      .insert(usageRecords)
-      .values({
-        subscription_id: subscriptionId,
-        period_start: subscription.current_period_start,
-        period_end: subscription.current_period_end,
-        members_count: usage.members_count,
-        units_count: usage.units_count,
-        demands_count: usage.demands_count,
-        storage_used_gb: usage.storage_used_gb,
-      })
-      .returning()
-
-    return newRecord
-  }
-
-  /**
-   * Atualiza uso de todas as assinaturas ativas
-   * Ideal para rodar em cronjob (1x por hora ou 1x por dia)
-   */
-  async updateAllActiveSubscriptions() {
-    const activeSubscriptions = await db.query.subscriptions.findMany({
-      where: sql`${subscriptions.status} IN ('active', 'trialing')`,
-    })
-
-    console.log(`📊 Atualizando uso de ${activeSubscriptions.length} assinaturas...`)
-
-    for (const subscription of activeSubscriptions) {
-      try {
-        await this.updateUsageRecord(subscription.id)
-        console.log(`✅ Assinatura ${subscription.id} atualizada`)
-      } catch (error) {
-        console.error(`❌ Erro ao atualizar assinatura ${subscription.id}:`, error)
-      }
-    }
-
-    console.log('✅ Atualização de uso concluída!')
-  }
-
-  /**
    * Verifica se organização pode criar recurso (verificação em tempo real)
-   * NÃO depende de usageRecords - conta direto do banco
+   * Busca limites diretamente do Stripe
    */
   async canCreateResource(
     organizationId: string,
@@ -143,30 +61,51 @@ export class UsageTrackingService {
     current?: number
     limit?: number
   }> {
-    // Busca assinatura ativa
-    const subscription = await db.query.subscriptions.findFirst({
-      where: and(
-        eq(subscriptions.organization_id, organizationId),
-        sql`${subscriptions.status} IN ('active', 'trialing')`
-      ),
-      with: { plan: true },
+    // Busca organização com stripe_customer_id
+    const { organizations } = await import('../db/schema/organization.ts')
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, organizationId),
     })
 
-    if (!subscription) {
+    if (!org || !org.stripe_customer_id) {
       return {
         allowed: false,
         reason: 'Nenhuma assinatura ativa',
       }
     }
 
-    // Busca limite do plano
-    const plan = subscription.plan
+    // Busca assinatura no Stripe
+    const Stripe = (await import('stripe')).default
+    const { env } = await import('../config/env.ts')
+    const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-02-24.acacia',
+    })
+
+    const stripeSubscriptions = await stripe.subscriptions.list({
+      customer: org.stripe_customer_id,
+      status: 'active',
+      expand: ['data.items.data.price'],
+    })
+
+    if (stripeSubscriptions.data.length === 0) {
+      return {
+        allowed: false,
+        reason: 'Nenhuma assinatura ativa',
+      }
+    }
+
+    const stripeSub = stripeSubscriptions.data[0]
+    const price = stripeSub.items.data[0].price
+    const productId = typeof price.product === 'string' ? price.product : price.product.id
+    const product = await stripe.products.retrieve(productId)
+
+    const metadata = product.metadata || {}
     let limit: number | null = null
     let currentCount = 0
 
     switch (resourceType) {
       case 'member':
-        limit = plan.max_members
+        limit = metadata.max_members ? parseInt(metadata.max_members) : null
         if (limit !== null) {
           const result = await db
             .select({ count: sql<number>`cast(count(*) as integer)` })
@@ -177,7 +116,7 @@ export class UsageTrackingService {
         break
 
       case 'unit':
-        limit = plan.max_units
+        limit = metadata.max_units ? parseInt(metadata.max_units) : null
         if (limit !== null) {
           const result = await db
             .select({ count: sql<number>`cast(count(*) as integer)` })
@@ -188,9 +127,8 @@ export class UsageTrackingService {
         break
 
       case 'applicant':
-        limit = plan.max_applicants
+        limit = metadata.max_applicants ? parseInt(metadata.max_applicants) : null
         if (limit !== null) {
-          // Conta applicants (solicitantes) da organização
           const { applicants } = await import('../db/schema/demands.ts')
           const result = await db
             .select({ count: sql<number>`cast(count(*) as integer)` })
