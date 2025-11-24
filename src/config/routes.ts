@@ -99,6 +99,9 @@ import {
 // Billing routes
 import { billingRoutes } from '../http/routes/billing.ts'
 
+// Usage routes
+import { usageRoutes } from '../http/routes/usage.ts'
+
 // Stripe webhook routes
 import { stripeWebhookRoutes } from '../http/routes/stripe-webhook.ts'
 
@@ -193,6 +196,9 @@ export async function registerRoutes(app: FastifyInstance) {
 
     // Billing routes
     app.register(billingRoutes),
+
+    // Usage routes
+    app.register(usageRoutes),
 
     // Stripe webhook routes
     app.register(stripeWebhookRoutes),

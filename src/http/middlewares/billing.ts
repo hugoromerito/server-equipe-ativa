@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { billingService } from '../../services/billing.ts'
+import { usageTrackingService } from '../../services/usage-tracking.ts'
 
 /**
  * Middleware para verificar se a organização tem uma assinatura ativa
@@ -40,6 +41,7 @@ export async function requireActiveSubscription(
 
 /**
  * Middleware para verificar limites de recursos do plano
+ * Verifica em tempo real contando direto do banco de dados
  */
 export function checkResourceLimit(resourceType: 'member' | 'unit' | 'demand') {
   return async (
@@ -54,13 +56,17 @@ export function checkResourceLimit(resourceType: 'member' | 'unit' | 'demand') {
       })
     }
 
-    const result = await billingService.canCreateResource(organizationId, resourceType)
+    // Usa usageTrackingService que verifica em tempo real
+    const result = await usageTrackingService.canCreateResource(organizationId, resourceType)
 
     if (!result.allowed) {
       return reply.status(403).send({
         message: result.reason || 'Limite do plano atingido',
         code: 'RESOURCE_LIMIT_EXCEEDED',
         resource_type: resourceType,
+        current_count: result.current,
+        limit: result.limit,
+        action: 'UPGRADE_PLAN',
       })
     }
   }
@@ -116,10 +122,11 @@ export async function checkStorageLimit(
 /**
  * Função helper para verificar se organização pode criar recurso
  * Útil para usar em lógica de negócio sem middleware
+ * Verifica em tempo real contando do banco de dados
  */
 export async function canCreateResource(
   organizationId: string,
   resourceType: 'member' | 'unit' | 'demand'
-): Promise<{ allowed: boolean; reason?: string }> {
-  return await billingService.canCreateResource(organizationId, resourceType)
+): Promise<{ allowed: boolean; reason?: string; current?: number; limit?: number }> {
+  return await usageTrackingService.canCreateResource(organizationId, resourceType)
 }
