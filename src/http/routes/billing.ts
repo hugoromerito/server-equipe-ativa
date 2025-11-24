@@ -36,38 +36,124 @@ export async function billingRoutes(app: FastifyInstance) {
       },
       async (request, reply) => {
         try {
-          const { stripeService } = await import('../../services/stripe.ts')
-          const products = await stripeService.listProducts({ active: true })
+          const Stripe = (await import('stripe')).default
+          const { env } = await import('../../config/env.ts')
           
-          // Formatar resposta
-          const formattedProducts = products.map(product => ({
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            active: product.active,
-            metadata: product.metadata || {},
-            default_price: product.default_price ? {
-              id: typeof product.default_price === 'string' 
-                ? product.default_price 
-                : product.default_price.id,
-              unit_amount: typeof product.default_price === 'object' 
-                ? product.default_price.unit_amount 
-                : null,
-              currency: typeof product.default_price === 'object' 
-                ? product.default_price.currency 
-                : 'brl',
-              recurring: typeof product.default_price === 'object' 
-                ? product.default_price.recurring 
-                : null,
-            } : null,
-          }))
+          const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+            apiVersion: '2025-02-24.acacia',
+          })
+          
+          const productsResponse = await stripe.products.list({
+            active: true,
+            limit: 100,
+            expand: ['data.default_price'],
+          })
+          
+          // Formatar resposta de forma segura
+          const formattedProducts = productsResponse.data.map(product => {
+            const defaultPrice = product.default_price
+            
+            return {
+              id: product.id,
+              name: product.name,
+              description: product.description || null,
+              active: product.active,
+              metadata: product.metadata || {},
+              default_price: defaultPrice ? (
+                typeof defaultPrice === 'string' 
+                  ? { id: defaultPrice, unit_amount: null, currency: 'brl', recurring: null }
+                  : {
+                      id: defaultPrice.id,
+                      unit_amount: defaultPrice.unit_amount || null,
+                      currency: defaultPrice.currency || 'brl',
+                      recurring: defaultPrice.recurring || null,
+                    }
+              ) : null,
+            }
+          })
           
           return reply.status(200).send({ products: formattedProducts })
         } catch (error) {
-          request.log.error('Erro ao buscar produtos do Stripe')
+          console.error('Erro detalhado ao buscar produtos:', error)
           return reply.status(500).send({ 
             message: 'Erro ao buscar produtos do Stripe',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+          })
+        }
+      }
+    )
+
+  /**
+   * Cria um produto/plano no Stripe (Admin)
+   */
+  app
+    .withTypeProvider<ZodTypeProvider>()
+    .post(
+      '/plans',
+      {
+        preHandler: [authPreHandler],
+        schema: {
+          tags: ['Billing'],
+          summary: 'Cria um produto/plano no Stripe',
+          security: [{ bearerAuth: [] }],
+          body: z.object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            price: z.number().positive(),
+            currency: z.string().default('brl'),
+            interval: z.enum(['month', 'year']).default('month'),
+            metadata: z.record(z.string()).optional(),
+          }),
+        },
+      },
+      async (request, reply) => {
+        try {
+          const { name, description, price, currency, interval, metadata } = request.body as any
+          const { stripeService } = await import('../../services/stripe.ts')
+          const Stripe = await import('stripe')
+          const stripe = new Stripe.default(stripeService.getPublishableKey().replace('pk_', 'sk_'), {
+            apiVersion: '2025-02-24.acacia',
+          })
+
+          // Criar produto
+          const product = await stripe.products.create({
+            name,
+            description,
+            metadata: metadata || {},
+          })
+
+          // Criar preço
+          const priceObj = await stripe.prices.create({
+            product: product.id,
+            unit_amount: Math.round(price * 100), // Converter para centavos
+            currency,
+            recurring: {
+              interval,
+            },
+          })
+
+          // Definir como preço padrão
+          await stripe.products.update(product.id, {
+            default_price: priceObj.id,
+          })
+
+          return reply.status(201).send({
+            success: true,
+            product: {
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              price_id: priceObj.id,
+              price: price,
+              currency,
+              interval,
+            },
+          })
+        } catch (error) {
+          request.log.error('Erro ao criar plano no Stripe')
+          return reply.status(500).send({
+            message: 'Erro ao criar plano',
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
           })
         }
       }
