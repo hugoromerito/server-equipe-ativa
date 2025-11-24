@@ -26,7 +26,7 @@ export async function billingRoutes(app: FastifyInstance) {
   app
     .withTypeProvider<ZodTypeProvider>()
     .get(
-      '/stripe/products',
+      '/plans',
       {
         schema: {
           tags: ['Billing'],
@@ -87,95 +87,6 @@ export async function billingRoutes(app: FastifyInstance) {
           request.log.error('Erro ao buscar produtos do Stripe:', error)
           return reply.status(500).send({ 
             message: 'Erro ao buscar produtos do Stripe',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-        }
-      }
-    )
-
-  /**
-   * Lista todos os planos disponíveis
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/plans',
-      {
-        schema: {
-          tags: ['Billing'],
-          summary: 'Lista planos disponíveis',
-          response: {
-            200: z.object({
-              plans: z.array(planResponseSchema),
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        try {
-          const plansData = await billingService.listPlans()
-          
-          // Converter datas para ISO string
-          const plans = plansData.map(plan => ({
-            ...plan,
-            created_at: plan.created_at.toISOString(),
-            updated_at: plan.updated_at?.toISOString() ?? null,
-          }))
-          
-          return reply.status(200).send({ plans })
-        } catch (error) {
-          request.log.error('Erro ao listar planos:', error)
-          return reply.status(500).send({ 
-            message: 'Erro ao buscar planos',
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
-        }
-      }
-    )
-
-  /**
-   * Obtém um plano específico
-   */
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/plans/:planId',
-      {
-        schema: {
-          tags: ['Billing'],
-          summary: 'Obtém detalhes de um plano',
-          params: z.object({
-            planId: z.string().uuid(),
-          }),
-          response: {
-            200: z.object({
-              plan: planResponseSchema,
-            }),
-          },
-        },
-      },
-      async (request, reply) => {
-        const { planId } = request.params as any
-
-        try {
-          const planData = await billingService.getPlan(planId)
-
-          if (!planData) {
-            return reply.status(404 as any).send({ message: 'Plano não encontrado' })
-          }
-
-          // Converter datas para ISO string
-          const plan = {
-            ...planData,
-            created_at: planData.created_at.toISOString(),
-            updated_at: planData.updated_at?.toISOString() ?? null,
-          }
-
-          return reply.status(200).send({ plan })
-        } catch (error) {
-          request.log.error('Erro ao buscar plano:', error)
-          return reply.status(500).send({ 
-            message: 'Erro ao buscar plano',
             error: error instanceof Error ? error.message : 'Erro desconhecido'
           })
         }
