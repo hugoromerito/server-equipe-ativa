@@ -184,7 +184,8 @@ async function startServer() {
 }
 
 // Se este arquivo for executado diretamente, iniciar o servidor
-const isMainModule = import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`
+// Compatível com Windows e Linux
+const isMainModule = import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))
 if (isMainModule) {
   startServer()
 }

@@ -36,17 +36,13 @@ export async function registerPlugins(app: FastifyInstance) {
   // CORS configurado com segurança
   await app.register(fastifyCors, {
     origin: (origin, callback) => {
-      // Em produção, permitir todos os origins (ou especifique os domínios permitidos)
-      if (env.NODE_ENV === 'production') {
-        callback(null, true)
-        return
-      }
-      
-      // Em desenvolvimento, permitir localhost e domínios Vercel
+      // Lista de origins permitidos
       const allowedOrigins = [
         'http://localhost:3000', 
         'http://localhost:3333', 
-        'http://localhost:5173'
+        'http://localhost:5173',
+        'https://equipeativa.com',
+        'https://www.equipeativa.com',
       ]
       
       // Adicionar domínios customizados da variável de ambiente
@@ -55,17 +51,25 @@ export async function registerPlugins(app: FastifyInstance) {
         allowedOrigins.push(...customOrigins)
       }
       
-      // Verificar se o origin é da Vercel (*.vercel.app ou domínios personalizados)
+      // Verificar se o origin é da Vercel ou GitHub Codespaces
       const isVercelDomain = origin && (
         origin.endsWith('.vercel.app') ||
         origin.endsWith('.vercel.com')
       )
       
+      const isGitHubCodespaces = origin && origin.includes('.app.github.dev')
+      
       const isAllowedOrigin = origin && allowedOrigins.includes(origin)
       
-      if (!origin || isVercelDomain || isAllowedOrigin) {
+      // Permitir se não tem origin (Postman/Insomnia), é domínio permitido, Vercel ou Codespaces
+      if (!origin || isAllowedOrigin || isVercelDomain || isGitHubCodespaces) {
         callback(null, true)
         return
+      }
+      
+      // Em produção, logar tentativas bloqueadas
+      if (env.NODE_ENV === 'production') {
+        console.warn(`⚠️ CORS bloqueou origem: ${origin}`)
       }
       
       callback(new Error('Não permitido pelo CORS'), false)
@@ -79,6 +83,7 @@ export async function registerPlugins(app: FastifyInstance) {
       'X-Requested-With',
       'X-Request-ID',
     ],
+    exposedHeaders: ['Content-Length', 'X-Request-ID'],
     maxAge: 86400, // 24 horas
   })
 
