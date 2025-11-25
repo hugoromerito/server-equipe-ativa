@@ -11,6 +11,7 @@ import {
   users,
 } from '../../../db/schema/index.ts' // Ajuste o caminho conforme necessário
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { checkResourceLimit } from '../../middlewares/billing.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
@@ -189,7 +190,7 @@ export const createInviteRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/invites',
     {
-      preHandler: [authPreHandler],
+      preHandler: [authPreHandler, checkResourceLimit('member')],
       schema: {
         tags: ['Invites'],
         summary: 'Criar novo convite',
