@@ -6,16 +6,17 @@ const initialPlans = [
   {
     name: 'Gratuito',
     slug: 'free',
-    description: 'Plano básico gratuito para começar',
+    description: 'Plano gratuito permanente - ideal para testar a plataforma',
     price: '0.00',
     interval: 'monthly' as const,
-    trial_days: 0,
+    trial_days: 0, // Plano gratuito não tem trial, é permanente
     features: [
       'Até 5 membros',
       'Até 2 unidades',
       'Até 50 demandas por mês',
       '1 GB de armazenamento',
       'Suporte por email',
+      'Acesso permanente gratuito',
     ],
     max_members: 5,
     max_units: 2,
@@ -26,10 +27,10 @@ const initialPlans = [
   {
     name: 'Básico',
     slug: 'basic',
-    description: 'Para pequenas equipes',
+    description: 'Para pequenas equipes e clínicas',
     price: '99.00',
     interval: 'monthly' as const,
-    trial_days: 14,
+    trial_days: 14, // Trial padrão (pode ser configurado no Stripe)
     features: [
       'Até 20 membros',
       'Até 5 unidades',
@@ -37,6 +38,7 @@ const initialPlans = [
       '10 GB de armazenamento',
       'Suporte prioritário',
       'Relatórios básicos',
+      'Trial de 14 dias disponível',
     ],
     max_members: 20,
     max_units: 5,
