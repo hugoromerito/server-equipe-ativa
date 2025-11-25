@@ -6,6 +6,7 @@ import { z } from 'zod/v4'
 import { db } from '../../../db/connection.ts'
 import { applicants } from '../../../db/schema/demands.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { checkResourceLimit } from '../../middlewares/billing.ts'
 import { getUserPermissions } from '../../utils/get-user-permissions.ts'
 import { BadRequestError } from '../_errors/bad-request-error.ts'
 import { UnauthorizedError } from '../_errors/unauthorized-error.ts'
@@ -396,7 +397,7 @@ export const createApplicantRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/applicants',
     {
-      preHandler: [authPreHandler],
+      preHandler: [authPreHandler, checkResourceLimit('applicant')],
       schema: createApplicantSchema,
     },
     async (request, reply) => {
