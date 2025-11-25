@@ -6,6 +6,7 @@ import { db } from '../../../db/connection.ts'
 import { members, units } from '../../../db/schema/index.ts'
 import { logger } from '../../../utils/logger.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { checkResourceLimit } from '../../middlewares/billing.ts'
 import { createSlug } from '../../utils/create-slug.ts'
 import { ConflictError } from '../_errors/conflict-error.ts'
 import { ForbiddenError } from '../_errors/forbidden-error.ts'
@@ -52,7 +53,7 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/units',
     {
-      preHandler: [authPreHandler],
+      preHandler: [authPreHandler, checkResourceLimit('unit')],
       schema: {
         tags: ['Units'],
         summary: 'Criar nova unidade',
@@ -84,15 +85,6 @@ export const createUnitRoute: FastifyPluginCallbackZod = (app) => {
         if (membership.organization_role !== 'ADMIN') {
           logger.warn(`Usuário ${userId} sem permissão de admin para criar unidade na organização ${organizationSlug}`)
           throw new ForbiddenError('Apenas administradores podem criar unidades.')
-        }
-
-        // Verificar limite de unidades do plano
-        const { usageTrackingService } = await import('../../../services/usage-tracking.ts')
-        const limitCheck = await usageTrackingService.canCreateResource(organization.id, 'unit')
-        
-        if (!limitCheck.allowed) {
-          logger.warn(`Limite de unidades atingido para organização ${organizationSlug}: ${limitCheck.reason}`)
-          throw new ForbiddenError(limitCheck.reason || 'Limite de unidades atingido.')
         }
 
         // Gerar slug da unidade
