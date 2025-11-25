@@ -74,24 +74,50 @@ export function checkResourceLimit(resourceType: 'member' | 'unit' | 'applicant'
 
 /**
  * Middleware para verificar limite de armazenamento
+ * Calcula o tamanho do arquivo dinamicamente do upload multipart
  */
 export async function checkStorageLimit(
   request: FastifyRequest<{ 
-    Params: { organizationId: string }
-    Body: { file_size?: number }
+    Params: { organizationSlug?: string; organizationId?: string }
   }>,
   reply: FastifyReply
 ) {
-  const { organizationId } = request.params
-  const fileSize = request.body?.file_size || 0
+  // Tenta pegar organizationId de diferentes fontes
+  const organizationSlug = (request.params as any).organizationSlug
+  const organizationId = (request.params as any).organizationId
 
-  if (!organizationId) {
+  if (!organizationSlug && !organizationId) {
     return reply.status(400).send({
-      message: 'ID da organização é obrigatório',
+      message: 'ID ou slug da organização é obrigatório',
     })
   }
 
-  const subscription = await billingService.getActiveSubscription(organizationId)
+  // Se temos slug, precisamos buscar a organização
+  let finalOrganizationId = organizationId
+  
+  if (organizationSlug && !organizationId) {
+    try {
+      const { organization } = await request.getUserMembership(organizationSlug)
+      finalOrganizationId = organization.id
+    } catch (error) {
+      return reply.status(404).send({
+        message: 'Organização não encontrada',
+      })
+    }
+  }
+
+  if (!finalOrganizationId) {
+    return reply.status(400).send({
+      message: 'Não foi possível identificar a organização',
+    })
+  }
+
+  // Calcula tamanho aproximado do arquivo do multipart
+  // O tamanho real será validado no processamento, mas isso dá uma estimativa
+  const contentLength = request.headers['content-length']
+  const estimatedFileSize = contentLength ? parseInt(contentLength) : 0
+
+  const subscription = await billingService.getActiveSubscription(finalOrganizationId)
 
   if (!subscription) {
     return reply.status(403).send({
@@ -105,15 +131,17 @@ export async function checkStorageLimit(
   // Se o plano tem limite de armazenamento
   if (usage.limits.max_storage_gb && usage.usage) {
     const currentStorageGB = parseFloat(usage.usage.storage_used_gb)
-    const fileSizeGB = fileSize / (1024 * 1024 * 1024)
+    const fileSizeGB = estimatedFileSize / (1024 * 1024 * 1024)
     const maxStorageGB = usage.limits.max_storage_gb
 
     if (currentStorageGB + fileSizeGB > maxStorageGB) {
       return reply.status(403).send({
         message: 'Limite de armazenamento do plano atingido',
         code: 'STORAGE_LIMIT_EXCEEDED',
-        current_usage: currentStorageGB,
-        limit: maxStorageGB,
+        current_usage_gb: currentStorageGB,
+        limit_gb: maxStorageGB,
+        percentage: Math.round((currentStorageGB / maxStorageGB) * 100),
+        action: 'UPGRADE_PLAN',
       })
     }
   }
