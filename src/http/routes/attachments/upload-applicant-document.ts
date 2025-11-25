@@ -8,6 +8,7 @@ import {
   storageService,
 } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { checkStorageLimit } from '../../middlewares/billing.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
 import { NotFoundError } from '../_errors/not-found-error.ts'
 
@@ -15,7 +16,7 @@ export const uploadApplicantDocumentRoute: FastifyPluginCallbackZod = (app) => {
   app.register(auth).post(
     '/organizations/:organizationSlug/applicants/:applicantId/documents',
     {
-      preHandler: [authPreHandler],
+      preHandler: [authPreHandler, checkStorageLimit],
       schema: {
         tags: ['Attachments'],
         summary: 'Upload de documento para requerente',

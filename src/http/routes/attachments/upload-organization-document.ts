@@ -8,6 +8,7 @@ import {
   storageService,
 } from '../../../services/storage.ts'
 import { auth, authPreHandler } from '../../middlewares/auth.ts'
+import { checkStorageLimit } from '../../middlewares/billing.ts'
 import { processFileUpload } from '../../middlewares/upload.ts'
 
 export const uploadOrganizationDocumentRoute: FastifyPluginCallbackZod = (
@@ -16,7 +17,7 @@ export const uploadOrganizationDocumentRoute: FastifyPluginCallbackZod = (
   app.register(auth).post(
     '/organizations/:organizationSlug/documents',
     {
-      preHandler: [authPreHandler],
+      preHandler: [authPreHandler, checkStorageLimit],
       schema: {
         tags: ['Attachments'],
         summary: 'Upload de documento para organização',
