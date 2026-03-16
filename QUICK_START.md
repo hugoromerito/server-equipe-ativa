@@ -283,9 +283,10 @@ DATABASE_URL=postgresql://user:password@localhost:5432/equipe_ativa
 JWT_SECRET=your-secret-key-here
 
 # AWS S3
+AWS_BUCKET_NAME=your-bucket-name
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_S3_BUCKET=your-bucket-name
+AWS_REGION=us-east-1
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
