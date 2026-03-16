@@ -102,8 +102,7 @@ export class StorageService {
 
   async getSignedDownloadUrl(
     key: string,
-    // expiresIn: number = 3600
-    expiresIn: 3600
+    expiresIn: number = 3600
   ): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: env.AWS_BUCKET_NAME,

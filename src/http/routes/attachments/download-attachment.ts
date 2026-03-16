@@ -62,7 +62,7 @@ export const downloadAttachmentRoute: FastifyPluginCallbackZod = (app) => {
       // Gerar URL de download temporária
       const downloadUrl = await storageService.getSignedDownloadUrl(
         attachment.key,
-        expiresIn as 3600
+        expiresIn
       )
 
       return reply.send({
@@ -138,7 +138,7 @@ export const downloadAttachmentRoute: FastifyPluginCallbackZod = (app) => {
       // Gerar URL de download temporária
       const downloadUrl = await storageService.getSignedDownloadUrl(
         attachment.key,
-        expiresIn as 3600
+        expiresIn
       )
 
       return reply.send({
